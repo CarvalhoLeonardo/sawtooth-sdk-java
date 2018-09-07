@@ -1,7 +1,7 @@
 package sawtooth.sdk.reactive.tp.processor;
 
 import java.util.Collection;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import sawtooth.sdk.protobuf.TpProcessRequest;
 import sawtooth.sdk.protobuf.TpProcessResponse;
 import sawtooth.sdk.reactive.common.messaging.MessageFactory;
@@ -19,9 +19,9 @@ public interface TransactionHandler {
    * 
    * @param processRequest
    * @param state
-   * @return Status of the execution
+   * @return Completable Future Result of the execution
    */
-  public Future<TpProcessResponse> executeProcessRequest(TpProcessRequest processRequest,
+  public CompletableFuture<TpProcessResponse> executeProcessRequest(TpProcessRequest processRequest,
       SawtoothState state);
 
   /**

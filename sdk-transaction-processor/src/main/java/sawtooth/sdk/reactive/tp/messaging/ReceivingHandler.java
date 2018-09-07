@@ -2,7 +2,6 @@ package sawtooth.sdk.reactive.tp.messaging;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
@@ -48,7 +47,10 @@ public class ReceivingHandler implements ZLoop.IZLoopHandler {
       receivedMessage.send(item.getSocket(),true);
       return 0;
     }
-    receivedMessage.dump(System.out);
+    
+    if (LOGGER.isDebugEnabled())
+      receivedMessage.dump(System.out);
+    
     LOGGER.debug("{} Received the Validator ID {} on socket {}.",this.idReceiver,receivedMessage.pop().getData(),new String(item.getSocket().getIdentity()));
     Message sawtoothMessage;
     try {

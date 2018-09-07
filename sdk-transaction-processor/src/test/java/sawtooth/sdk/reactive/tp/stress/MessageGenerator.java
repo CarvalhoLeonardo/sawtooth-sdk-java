@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import com.google.protobuf.InvalidProtocolBufferException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.WorkQueueProcessor;
-import reactor.core.scheduler.Schedulers;
 import reactor.util.concurrent.Queues;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.reactive.common.messaging.MessageFactory;

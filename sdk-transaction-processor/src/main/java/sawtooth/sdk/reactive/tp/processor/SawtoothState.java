@@ -29,7 +29,7 @@ public interface SawtoothState {
    * @throws InternalError something went wrong processing transaction
    * @throws InvalidProtocolBufferException
    */
-  public Map<String, ByteString> getState(List<String> addresses)
+  public Map<String, ByteString> getState(String contextID, List<String> addresses)
       throws InternalError, InvalidTransactionException, InvalidProtocolBufferException;
 
   /**
@@ -39,7 +39,7 @@ public interface SawtoothState {
    * @return addressesThatWereSet, A collection of address Strings that were set
    * @throws InternalError something went wrong processing transaction
    */
-  public Collection<String> setState(
+  public Collection<String> setState(String contextID,
       List<java.util.Map.Entry<String, ByteString>> addressValuePairs)
       throws InternalError, InvalidTransactionException;
 
@@ -57,6 +57,6 @@ public interface SawtoothState {
    * 
    * @return Response from the Validator
    */
-  public ByteString AddEvent(String eventType, Map<String, String> attributes, ByteString extraData)
+  public ByteString AddEvent(String contextID, String eventType, Map<String, String> attributes, ByteString extraData)
       throws InternalError, InvalidTransactionException, InvalidProtocolBufferException;
 }

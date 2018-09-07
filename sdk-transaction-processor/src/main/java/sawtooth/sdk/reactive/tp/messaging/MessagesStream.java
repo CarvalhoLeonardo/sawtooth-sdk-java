@@ -5,7 +5,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import reactor.core.publisher.Flux;
 import sawtooth.sdk.protobuf.Message;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
 
 public abstract class MessagesStream {
 

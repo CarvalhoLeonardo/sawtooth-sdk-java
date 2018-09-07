@@ -4,6 +4,7 @@ import java.lang.reflect.InaccessibleObjectException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +63,7 @@ public class SimpleTestTransactionHandler implements TransactionHandler {
   }
 
   @Override
-  public Future<TpProcessResponse> executeProcessRequest(TpProcessRequest processRequest,
+  public CompletableFuture<TpProcessResponse> executeProcessRequest(TpProcessRequest processRequest,
       SawtoothState state){
     // TODO Auto-generated method stub
     return null;

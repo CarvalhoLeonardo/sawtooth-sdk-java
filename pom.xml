@@ -32,11 +32,11 @@
 		<SAWTOOTH_LOG_LEVEL>INFO</SAWTOOTH_LOG_LEVEL>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
-        <modules>
-                <module>sdk-common</module>
-                <module>sdk-transaction-processor</module>
-                <module>sdk-rest-client</module>
-        </modules>
+	<modules>
+		<module>sdk-common</module>
+		<module>sdk-transaction-processor</module>
+		<module>sdk-rest-client</module>
+	</modules>
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -225,10 +225,10 @@
 							</goals>
 							<configuration>
 								<encoding>UTF-8</encoding>
-								<configLocation>${basedir}/../checkstyle.xml</configLocation>
 								<consoleOutput>true</consoleOutput>
 								<failOnViolation>false</failOnViolation>
 								<violationSeverity>warning</violationSeverity>
+								<rulesFiles>${basedir}/../checkstyle.xml</rulesFiles>
 							</configuration>
 						</execution>
 					</executions>
@@ -268,5 +268,36 @@
 				</plugin>
 			</plugins>
 		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.0.0</version>
+				<executions>
+					<execution>
+						<id>validate</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>checkstyle-aggregate</goal>
+						</goals>
+						<configuration>
+							<encoding>UTF-8</encoding>
+							<consoleOutput>true</consoleOutput>
+							<failOnViolation>false</failOnViolation>
+							<violationSeverity>warning</violationSeverity>
+							<rulesFiles>checkstyle.xml</rulesFiles>
+							<configLocation>checkstyle.xml</configLocation>
+						</configuration>
+					</execution>
+				</executions>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>8.11</version>
+					</dependency>
+				</dependencies>
+			</plugin>
+		</plugins>
 	</build>
 </project>

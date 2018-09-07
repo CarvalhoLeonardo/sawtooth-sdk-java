@@ -2,15 +2,11 @@ package sawtooth.sdk.reactive.tp.stress;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.time.Duration;
-import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZContext;
@@ -31,7 +27,6 @@ import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.TpRegisterRequest;
 import sawtooth.sdk.protobuf.TpRegisterResponse;
 import sawtooth.sdk.reactive.common.messaging.MessageFactory;
-import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 
 /**
  * 

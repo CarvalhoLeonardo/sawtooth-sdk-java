@@ -18,6 +18,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.UnknownFieldSet;
 import com.google.protobuf.UnknownFieldSet.Field;
 import sawtooth.sdk.protobuf.Message;
+import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.protobuf.PingRequest;
 import sawtooth.sdk.protobuf.PingResponse;
 import sawtooth.sdk.protobuf.TpStateDeleteRequest;
@@ -27,7 +28,6 @@ import sawtooth.sdk.protobuf.TpStateGetRequest;
 import sawtooth.sdk.protobuf.TpStateGetResponse;
 import sawtooth.sdk.protobuf.TpStateSetRequest;
 import sawtooth.sdk.protobuf.TpStateSetResponse;
-import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 
 /**

@@ -2,7 +2,6 @@ package sawtooth.sdk.rest.client.tests;
 
 import javax.enterprise.inject.se.SeContainer;
 import javax.enterprise.inject.se.SeContainerInitializer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ISuite;
@@ -10,7 +9,6 @@ import org.testng.ISuiteListener;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
-
 import sawtooth.sdk.reactive.config.RESTClientConfig;
 import sawtooth.sdk.reactive.rest.ops.RESTStateOps;
 

@@ -1,11 +1,8 @@
 package sawtooth.sdk.rest.client.tests;
 
 import static org.testng.Assert.assertNotNull;
-
 import java.util.concurrent.ExecutionException;
-
 import javax.enterprise.inject.spi.CDI;
-
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import sawtooth.sdk.reactive.rest.model.RESTBatchListing;

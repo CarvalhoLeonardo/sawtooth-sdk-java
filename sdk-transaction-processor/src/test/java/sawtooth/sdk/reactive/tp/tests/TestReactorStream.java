@@ -17,15 +17,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import com.google.protobuf.InvalidProtocolBufferException;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.reactive.tp.fake.FakeValidator;
 import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
-import sawtooth.sdk.reactive.tp.messaging.ReactorStream;
 import sawtooth.sdk.reactive.tp.messaging.ReactorStream;
 import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
 

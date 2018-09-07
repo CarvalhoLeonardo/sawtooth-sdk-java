@@ -38,7 +38,6 @@ import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.protobuf.TpEventAddResponse;
 import sawtooth.sdk.protobuf.TpStateEntry;
 import sawtooth.sdk.protobuf.TpStateGetResponse;
-import sawtooth.sdk.protobuf.TpStateSetResponse;
 import sawtooth.sdk.reactive.common.exceptions.InternalError;
 import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
 import sawtooth.sdk.reactive.common.messaging.MessageFactory;
@@ -50,14 +49,12 @@ import sawtooth.sdk.reactive.tp.messaging.MessagesStream;
 public class DefaultSawtoothStateImpl implements SawtoothState {
 
   private MessagesStream stream;
-  private String contextId;
   private static final int TIME_OUT = 2;
   MessageFactory mesgFact;
   private final static Logger LOGGER = LoggerFactory.getLogger(DefaultSawtoothStateImpl.class);
 
-  public DefaultSawtoothStateImpl(MessagesStream stream, String contextId) {
+  public DefaultSawtoothStateImpl(MessagesStream stream) {
     this.stream = stream;
-    this.contextId = contextId;
   }
 
   /**
@@ -68,7 +65,7 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
    * @throws InternalError something went wrong processing transaction
    * @throws InvalidProtocolBufferException
    */
-  public Map<String, ByteString> getState(List<String> addresses)
+  public Map<String, ByteString> getState(String contextID, List<String> addresses)
       throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
 
     Message getResponse;
@@ -107,13 +104,13 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
    * @return addressesThatWereSet, A collection of address Strings that were set
    * @throws InternalError something went wrong processing transaction
    */
-  public Collection<String> setState(List<Map.Entry<String, ByteString>> addressValuePairs)
+  public Collection<String> setState(String contextID, List<Map.Entry<String, ByteString>> addressValuePairs)
       throws InternalError, InvalidTransactionException {
 
     Message setResponse;
     try {
       setResponse =
-          getRemoteMessageResponse(mesgFact.getSetStateRequest(this.contextId, addressValuePairs));
+          getRemoteMessageResponse(mesgFact.getSetStateRequest(contextID, addressValuePairs));
     } catch (Exception iee) {
       throw new InternalError(iee.toString());
     }
@@ -131,14 +128,14 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
   }
 
   @Override
-  public ByteString AddEvent(String eventType, Map<String, String> attributes, ByteString extraData)
+  public ByteString AddEvent(String contextID, String eventType, Map<String, String> attributes, ByteString extraData)
       throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
 
     final Event.Attribute.Builder attBuilder = Event.Attribute.newBuilder();
 
     Message setResponse = null;
     try {
-      setResponse = getRemoteMessageResponse(mesgFact.getEventAddRequest(this.contextId, eventType,
+      setResponse = getRemoteMessageResponse(mesgFact.getEventAddRequest(contextID, eventType,
           attributes.entrySet().stream().map(es -> {
             return attBuilder.setKey(es.getKey()).setValue(es.getValue()).build();
           }).collect(Collectors.toList()), extraData));
