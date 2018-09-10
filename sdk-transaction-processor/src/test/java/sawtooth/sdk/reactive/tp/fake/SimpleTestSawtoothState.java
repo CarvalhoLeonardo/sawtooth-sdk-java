@@ -30,7 +30,7 @@ public class SimpleTestSawtoothState implements SawtoothState {
       new ConcurrentHashMap<>();
 
   @Override
-  public Map<String, ByteString> getState(List<String> addresses) {
+  public Map<String, ByteString> getState(String contextID, List<String> addresses) {
     final Map<String, ByteString> result = new HashMap<>();
     if (addresses != null && !addresses.isEmpty()) {
       verySimpleStateHolder.entrySet().stream().filter(ee -> {
@@ -43,7 +43,7 @@ public class SimpleTestSawtoothState implements SawtoothState {
   }
 
   @Override
-  public Collection<String> setState(List<Entry<String, ByteString>> addressValuePairs)
+  public Collection<String> setState(String contextID,List<Entry<String, ByteString>> addressValuePairs)
       throws InternalError, InvalidTransactionException {
     if (addressValuePairs != null && !addressValuePairs.isEmpty()) {
       return addressValuePairs.stream().map(eo -> {
@@ -55,7 +55,7 @@ public class SimpleTestSawtoothState implements SawtoothState {
   }
 
   @Override
-  public ByteString AddEvent(String eventType, Map<String, String> attributes, ByteString extraData)
+  public ByteString AddEvent(String contextID,String eventType, Map<String, String> attributes, ByteString extraData)
       throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
     throw new InternalError("Not Implemented");
   }

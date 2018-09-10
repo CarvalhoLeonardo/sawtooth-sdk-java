@@ -13,6 +13,7 @@ import org.zeromq.ZMQ.PollItem;
 import org.zeromq.ZMsg;
 import reactor.core.publisher.EmitterProcessor;
 import sawtooth.sdk.protobuf.Message;
+import sawtooth.sdk.protobuf.Message.MessageType;
 
 /**
  * 
@@ -26,9 +27,9 @@ public class ReceivingHandler implements ZLoop.IZLoopHandler {
   protected String idReceiver;
   protected String prefixId;
   private final static Logger LOGGER = LoggerFactory.getLogger(ReceivingHandler.class);
-  final Map<String,String> addressCorrelationMapping;
+  final Map<String,byte[]> addressCorrelationMapping;
 
-  public ReceivingHandler(EmitterProcessor<Message> recEmitter, String prefixId, int idSender, Map<String,String> externaCorrelationMapping) {
+  public ReceivingHandler(EmitterProcessor<Message> recEmitter, String prefixId, int idSender, Map<String,byte[]> externaCorrelationMapping) {
     super();
     this.recEmitter = recEmitter;
     this.idReceiver = prefixId+"_RecHandler_"+idSender;
@@ -41,17 +42,21 @@ public class ReceivingHandler implements ZLoop.IZLoopHandler {
   public int handle(ZLoop loop, PollItem item, Object arg) {
     LOGGER.debug(this.idReceiver+" handle()");
     ZMsg receivedMessage = ZMsg.recvMsg(item.getSocket());
+    
+    if (LOGGER.isDebugEnabled()) {
+      receivedMessage.dump(System.out);
+      LOGGER.debug("Message Dump ###############################");
+    }
+    
     if (! receivedMessage.getLast().hasData()) {
       // ROUTER_PROBE message? We hope so.
       LOGGER.debug("{} Probable ROUTER_PROBE from {}, answering....",this.idReceiver,receivedMessage.getFirst().getString(StandardCharsets.UTF_8));
       receivedMessage.send(item.getSocket(),true);
       return 0;
     }
-    
-    if (LOGGER.isDebugEnabled())
-      receivedMessage.dump(System.out);
-    
-    LOGGER.debug("{} Received the Validator ID {} on socket {}.",this.idReceiver,receivedMessage.pop().getData(),new String(item.getSocket().getIdentity()));
+
+    byte[] routerID = receivedMessage.pop().getData();
+    LOGGER.debug("{} Received the Validator ID {} on socket {}.",this.idReceiver,routerID,new String(item.getSocket().getIdentity()));
     Message sawtoothMessage;
     try {
       LOGGER.debug("Parsing message with {} frames and {} bytes...",receivedMessage.size(),receivedMessage.contentSize());
@@ -64,7 +69,13 @@ public class ReceivingHandler implements ZLoop.IZLoopHandler {
       }
       LOGGER.debug("Parsed.");
       sawtoothMessage = Message.parseFrom(bbuffer.toByteArray());
-      addressCorrelationMapping.put(sawtoothMessage.getCorrelationId(),idReceiver);
+      if (MessageType.PING_REQUEST.equals(sawtoothMessage.getMessageType())) {
+        addressCorrelationMapping.put(sawtoothMessage.getCorrelationId(),routerID);
+      } else {
+        addressCorrelationMapping.put(sawtoothMessage.getCorrelationId(),idReceiver.getBytes());  
+      }
+        
+      
 
       LOGGER.debug(this.idReceiver+" Emitting sawtooth Message "+ sawtoothMessage.toString());
       recEmitter.onNext(sawtoothMessage);

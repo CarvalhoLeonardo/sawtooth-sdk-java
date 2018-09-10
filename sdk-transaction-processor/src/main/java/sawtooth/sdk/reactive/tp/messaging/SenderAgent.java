@@ -16,9 +16,9 @@ public class SenderAgent implements Consumer<Message> {
   final String myName;
   final byte[] externalSocketId;
   final ZMQ.Socket socket;
-  final Map<String,String> addressCorrelationMapping;
+  final Map<String,byte[]> addressCorrelationMapping;
 
-  public SenderAgent(int newId, ZMQ.Socket senderSocket, String prefix, byte[] externalrouterID, Map<String,String> externaCorrelationMapping) {
+  public SenderAgent(int newId, ZMQ.Socket senderSocket, String prefix, byte[] externalrouterID, Map<String,byte[]> externaCorrelationMapping) {
     myName = prefix+"_Sender_" + newId;
     externalSocketId = externalrouterID;
     socket = senderSocket;
@@ -29,11 +29,26 @@ public class SenderAgent implements Consumer<Message> {
   @Override
   public void accept(Message sawtoothMessage) {
     LOGGER.debug(myName + " Accepting...");
+    /**
+     *     ZMsg msg = new ZMsg();
+    if (externalSocketId != null && !(externalSocketId.length == 0)) {
+      LOGGER.debug(" External socket ID : {}.", externalSocketId);
+      msg.offer(new ZFrame(externalSocketId));
+    }
+    if (addressCorrelationMapping.containsKey(sawtoothMessage.getCorrelationId())) {
+      LOGGER.debug(myName + " It's a response to socket ID "
+          + addressCorrelationMapping.get(sawtoothMessage.getCorrelationId()));
+      addressCorrelationMapping.remove(sawtoothMessage.getCorrelationId());
+    } else {
+      LOGGER.debug(myName + " It's a request from us.");
+    }
+
+     */
     ZMsg msg = new ZMsg();
     if (addressCorrelationMapping.containsKey(sawtoothMessage.getCorrelationId())) {
       // We are answering a message, we need to address it!
       LOGGER.debug(myName + " It's a response to socket ID "+addressCorrelationMapping.get(sawtoothMessage.getCorrelationId()));
-      msg.wrap(new ZFrame(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId())));
+      msg.offer(new ZFrame(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId())));
       addressCorrelationMapping.remove(sawtoothMessage.getCorrelationId());
     } else {
       LOGGER.debug(myName + " It's a request from us.");

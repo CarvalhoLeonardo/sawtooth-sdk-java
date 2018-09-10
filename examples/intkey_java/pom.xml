@@ -38,7 +38,7 @@
 							<encoding>UTF-8</encoding>
 							<configLocation>../../checkstyle.xml</configLocation>
 							<consoleOutput>true</consoleOutput>
-							<failOnViolation>true</failOnViolation>
+							<failOnViolation>false</failOnViolation>
 							<violationSeverity>warning</violationSeverity>
 							<sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
 						</configuration>

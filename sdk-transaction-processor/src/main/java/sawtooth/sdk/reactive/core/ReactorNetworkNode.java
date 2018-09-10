@@ -1,6 +1,7 @@
 package sawtooth.sdk.reactive.core;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -8,6 +9,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -26,6 +28,7 @@ import reactor.util.Logger;
 import reactor.util.Loggers;
 import reactor.util.concurrent.Queues;
 import sawtooth.sdk.protobuf.Message;
+import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 import sawtooth.sdk.reactive.tp.messaging.ReceivingHandler;
 import sawtooth.sdk.reactive.tp.messaging.SenderAgent;
@@ -45,6 +48,10 @@ import sawtooth.sdk.reactive.tp.messaging.SenderAgent;
 public class ReactorNetworkNode implements Runnable {
 
   private final static Logger LOGGER = Loggers.getLogger(ReactorNetworkNode.class);
+  
+  // Messages Types that we do not send to a validator 
+  private final static List<Message.MessageType> DEAD_END_MESSAGES = Arrays.asList(MessageType.TP_PROCESS_REQUEST);  
+  
   private String BACK_END_ADDRESS = "ipc://" + UUID.randomUUID().toString();
   private String NODE_IDENTIFICATION;
 
@@ -52,7 +59,7 @@ public class ReactorNetworkNode implements Runnable {
   private List<PollItem> pollers = new ArrayList<>();
 
   // Correlation IDs of messages being worked on
-  private final Map<String, String> corrIDsAtWork = new ConcurrentHashMap<String, String>();
+  private final Map<String, byte[]> corrIDsAtWork = new ConcurrentHashMap<String, byte[]>();
 
   // Messages waiting responses
   private final Map<String,CompletableFuture<Message>> expectingResponses = new ConcurrentHashMap<String,CompletableFuture<Message>>();
@@ -71,6 +78,7 @@ public class ReactorNetworkNode implements Runnable {
   private EmitterProcessor<Message> transformationEmitter = EmitterProcessor.<Message>create();
 
   private ExecutorService tPoll = Executors.newWorkStealingPool(3);
+  
   
   private Disposable workingFunctionSubscription = null;
 
@@ -109,11 +117,14 @@ public class ReactorNetworkNode implements Runnable {
         .publish()
         .autoConnect()
         .subscribe( cs ->{
-          LOGGER.debug("senderEmitter.onNext({}) ...", cs.getCorrelationId());
-          senderEmitter.onNext(cs);
+          if (DEAD_END_MESSAGES.contains(cs.getMessageType())) {
+            LOGGER.debug("senderEmitter -- message type {} not to be sent - CID {}",cs.getMessageType(), cs.getCorrelationId());
+          } else {
+            LOGGER.debug("senderEmitter.onNext({}) ...", cs.getCorrelationId());
+            senderEmitter.onNext(cs);
+          }
      });
-    
-    
+  
   }
 
   
