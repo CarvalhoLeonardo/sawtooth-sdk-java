@@ -1,7 +1,4 @@
-**/bin
 target/
-bin/
-**/bin
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -13,7 +10,6 @@ buildNumber.properties
 **/.settings/
 **/.classpath
 **/.project
-**/.externalToolBuilders
 .project
 build/
 **/pom.xml.versionsBackup
