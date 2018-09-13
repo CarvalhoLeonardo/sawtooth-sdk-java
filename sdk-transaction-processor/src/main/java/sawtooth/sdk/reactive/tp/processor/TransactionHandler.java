@@ -34,5 +34,7 @@ public interface TransactionHandler {
   public void setMessageFactory(MessageFactory mFactory);
 
   public MessageFactory getMessageFactory();
+  
+  static final int MESSAGE_SIZE_DELIMITER = 64;
 
 }
