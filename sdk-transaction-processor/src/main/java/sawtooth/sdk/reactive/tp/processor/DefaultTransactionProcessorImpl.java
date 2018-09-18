@@ -1,17 +1,22 @@
 package sawtooth.sdk.reactive.tp.processor;
 
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +33,6 @@ import sawtooth.sdk.reactive.common.messaging.CoreMessagesFactory;
 import sawtooth.sdk.reactive.tp.messaging.ReactorStream;
 
 public class DefaultTransactionProcessorImpl implements TransactionProcessor {
-
   private final class ReactiveStateImpl implements SawtoothState {
 
     @Override
@@ -71,13 +75,12 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
   }
 
   private final static String KEY_FORMAT = "%s | %s";
-
   private final static Logger LOGGER =
       LoggerFactory.getLogger(DefaultTransactionProcessorImpl.class);
-
   private final String address;
-
   protected CoreMessagesFactory coreMessageFact;
+
+
 
   private Function<Message, Message> coreMessagesFunction = new Function<Message, Message>() {
     @Override
@@ -162,22 +165,21 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
       return result;
     }
   };
-
-
   private final Deque<TransactionHandler> currentHandlers =
       new ConcurrentLinkedDeque<TransactionHandler>();
+
   protected ReactiveStateImpl internalState = new ReactiveStateImpl();
 
   private final Map<String, TransactionHandler> messagesRouter =
       new ConcurrentHashMap<String, TransactionHandler>();
 
   private int pFactor = 4;
-
   private final String processorID;
   protected ReactorStream reactStream;
-  Thread streamTH;
-  ExecutorService tasksExecutor;
 
+  Thread streamTH;
+
+  ExecutorService tasksExecutor;
 
   TpProcessRequest.Builder tpProcessRequestBuilder = TpProcessRequest.newBuilder();
 
@@ -245,6 +247,10 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
     reactStream.getStarted().get();
     LOGGER.debug("Message Stream Started.");
     reactStream.setTransformationFunction(coreMessagesFunction);
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      LOGGER.debug("Signaled to stop all.");
+      this.shutdown();
+    }));
     /*
      * periodicTasks.schedule(new Callable<Message>() { Message pingResp;
      *
@@ -267,5 +273,53 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
   }
 
   @Override
-  public void shutdown() {}
+  public void shutdown() {
+    LOGGER.debug("Shutting down...");
+    List<Message> goobByeLetters = new ArrayList<>();
+    List<CompletableFuture<Message>> allToReceive = new ArrayList<>();
+
+    currentHandlers.forEach(eh -> {
+      LOGGER.debug("Getting unregister request for TH of family {}, version {}",
+          eh.transactionFamilyName(), eh.getVersion());
+      goobByeLetters.add(eh.getMessageFactory().getUnregisterRequest());
+    });
+
+    goobByeLetters.stream().map(em -> {
+      reactStream.sendBack(em.getCorrelationId(), em);
+      try {
+        CompletableFuture<Message> awaitingOne;
+
+        awaitingOne = (CompletableFuture<Message>) reactStream.receive(em.getCorrelationId(),
+            Duration.ofSeconds(1L));
+        awaitingOne.whenComplete((rs, ex) -> {
+          if (ex != null) {
+            LOGGER.debug("::==========>> FAILURE {}.", ex.getMessage());
+          } else {
+            LOGGER.debug("Successfully unregistered : CID {}.", rs.getCorrelationId());
+          }
+        });
+        allToReceive.add(awaitingOne);
+      } catch (TimeoutException e) {
+        e.printStackTrace();
+      }
+      return true;
+    }).allMatch(al -> true);
+
+    CompletableFuture<?>[] stupidRules = new CompletableFuture<?>[allToReceive.size()];
+    allToReceive.toArray(stupidRules);
+    CompletableFuture<Void> result = CompletableFuture.allOf(stupidRules);
+    result.join();
+    try {
+      result.get(10, TimeUnit.SECONDS);
+      reactStream.close();
+      streamTH.join();
+
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      e.printStackTrace();
+    }
+
+
+
+  }
+
 }

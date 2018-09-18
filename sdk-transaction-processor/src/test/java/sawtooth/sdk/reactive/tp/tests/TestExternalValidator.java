@@ -127,7 +127,7 @@ public class TestExternalValidator extends BaseTest {
    * @throws ExecutionException
    * @throws NoSuchAlgorithmException
    */
-  @Test(enabled = false)
+  @Test
   public void testPing() throws InterruptedException, ExecutionException, NoSuchAlgorithmException {
     Message pong = tpUnderTest.ping().get();
     Assert.assertNotNull(pong);
