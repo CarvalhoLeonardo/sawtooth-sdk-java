@@ -29,6 +29,10 @@ import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
  *
  *         This implementation is intended to answer simple requests, like PING and
  *         REGISTRATION_REQUEST
+ * 
+ *         Don't forget to run "sawset proposal create
+ *         sawtooth.validator.transaction_families='[..., {"family":"sawtooth_settings",
+ *         "version":"1.0"}, {"family":"coretests", "version":"0.0"}]'"
  *
  */
 public class SimpleTestTransactionHandler implements TransactionHandler, SawtoothAddressFactory {
@@ -38,7 +42,7 @@ public class SimpleTestTransactionHandler implements TransactionHandler, Sawtoot
   static {
     MessageFactory tmpMF = null;
     try {
-      tmpMF = new MessageFactory("coretest", "666.666.666", null, null, "coretest");
+      tmpMF = new MessageFactory("coretests", "0.0", null, null, "coretest");
     } catch (NoSuchAlgorithmException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();

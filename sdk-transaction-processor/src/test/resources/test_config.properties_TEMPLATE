@@ -1,4 +1,3 @@
-validator_add=
-validator_port=
-tprocessor_id=
-parallelism=
+validator_add=${sw_validator_url}
+tprocessor_id=${processor_id}
+parallelism=${processor_parallelism}

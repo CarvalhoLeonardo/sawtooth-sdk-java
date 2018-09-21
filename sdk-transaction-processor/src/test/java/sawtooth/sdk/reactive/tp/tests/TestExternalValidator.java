@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -15,6 +16,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import com.google.protobuf.InvalidProtocolBufferException;
 import sawtooth.sdk.protobuf.Batch;
+import sawtooth.sdk.protobuf.ClientBatchStatusResponse;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
@@ -101,12 +103,9 @@ public class TestExternalValidator extends BaseTest {
 
   @BeforeClass
   public void setUp() {
-    tpUnderTest =
-        new TestTransactionProcessor(
-            configData.getProperty("validator_add") + ":"
-                + configData.getProperty("validator_port"),
-            configData.getProperty("tprocessor_id"),
-            Integer.parseInt(configData.getProperty("parallelism")));
+    tpUnderTest = new TestTransactionProcessor(configData.getProperty("validator_add"),
+        configData.getProperty("tprocessor_id"),
+        Integer.parseInt(configData.getProperty("parallelism")));
     try {
       tpUnderTest.init();
     } catch (InterruptedException | ExecutionException e) {
@@ -122,12 +121,14 @@ public class TestExternalValidator extends BaseTest {
   /**
    * Let's send one ping.
    *
+   * DISABLED - we don't haev any motive to ping the Validator. Yet.
+   *
    * @throws InvalidProtocolBufferException
    * @throws InterruptedException
    * @throws ExecutionException
    * @throws NoSuchAlgorithmException
    */
-  @Test
+  @Test(enabled = false)
   public void testPing() throws InterruptedException, ExecutionException, NoSuchAlgorithmException {
     Message pong = tpUnderTest.ping().get();
     Assert.assertNotNull(pong);
@@ -145,30 +146,38 @@ public class TestExternalValidator extends BaseTest {
    * @throws InterruptedException
    * @throws ExecutionException
    * @throws NoSuchAlgorithmException
+   * @throws InvalidProtocolBufferException
    */
   @Test
-  public void testSendOneLameBatch()
-      throws InterruptedException, ExecutionException, NoSuchAlgorithmException {
+  public void testSendOneLameBatch() throws InterruptedException, ExecutionException,
+      NoSuchAlgorithmException, InvalidProtocolBufferException {
     ByteBuffer lameData = ByteBuffer.wrap("THIS IS A LAME PAYLOAD".getBytes());
-    String lameAddress = "aaaaaaaaaaaaa";
+    List<String> lameAddress = Arrays
+        .asList(testTH.generateAddress(testTH.getNameSpaces().iterator().next(), "aaaaaaaaaaaa"));
     String correlationID = UUID.randomUUID().toString();
 
-    Message preq = testTH.getMessageFactory().getProcessRequest(null, lameData,
-        testTH.generateAddresses(testTH.getNameSpaces().iterator().next(), lameAddress),
-        testTH.generateAddresses(testTH.getNameSpaces().iterator().next(), lameAddress), null,
-        null);
+    Message preq = testTH.getMessageFactory().getProcessRequest(null, lameData, lameAddress,
+        lameAddress, null, null);
     Batch batchReq = testTH.getMessageFactory().createBatch(Arrays.asList(preq), true);
-
     Message theReq =
         Message.newBuilder().setContent(batchReq.toByteString()).setCorrelationId(correlationID)
             .setMessageType(MessageType.CLIENT_BATCH_SUBMIT_REQUEST).build();
+
     Message answer = tpUnderTest.send(theReq).get();
 
     Assert.assertNotNull(answer);
-    LOGGER.debug("Got the response {}", answer);
 
-    Assert.assertEquals(answer.getCorrelationId(), correlationID);
-    Assert.assertEquals(answer.getMessageType(), MessageType.CLIENT_BATCH_SUBMIT_RESPONSE);
+    ClientBatchStatusResponse responsePayload =
+        ClientBatchStatusResponse.newBuilder().mergeFrom(answer.getContent()).build();
 
+    LOGGER.debug("Got the response {} with the payload {}.", answer, responsePayload);
+
+    Assert.assertEquals(answer.getCorrelationId(), correlationID,
+        "We got the wrong correlation id.");
+    Assert.assertEquals(answer.getMessageType(), MessageType.CLIENT_BATCH_SUBMIT_RESPONSE,
+        "We didn't receive the correct message type.");
+
+    Assert.assertEquals(responsePayload.getStatus(), ClientBatchStatusResponse.Status.OK,
+        "The transaction didn't succeed.");
   }
 }
