@@ -222,7 +222,7 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
     }
-
+    handler.setContextId(getExternalContextID());
     currentHandlers.add(handler);
 
     messagesRouter.put(
@@ -234,6 +234,11 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
   public void disableHandler(String transactionFamilyName, String version) {
     // TODO Auto-generated method stub
 
+  }
+
+  @Override
+  public byte[] getExternalContextID() {
+    return reactStream.getExternalContext();
   }
 
   @Override

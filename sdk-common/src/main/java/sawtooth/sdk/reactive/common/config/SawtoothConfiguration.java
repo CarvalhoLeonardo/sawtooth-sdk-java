@@ -5,15 +5,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 
+ *
  * @author Leonardo T. de Carvalho
- * 
+ *
  * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
- * 
- * 
+ *
+ *
 // @formatter:off
- *	
+ *
  *  Basic bootstrap of some global properties of the packages:
  *
  *	- Asynchronous Logging
@@ -24,7 +24,11 @@ import org.slf4j.LoggerFactory;
 public class SawtoothConfiguration {
 
 
+  /**
+   * Our ubiquitous Logger.
+   */
   private final static Logger LOGGER = LoggerFactory.getLogger(SawtoothConfiguration.class);
+
   static {
     if (LOGGER.isInfoEnabled())
       LOGGER.info("Registering Async logging...");

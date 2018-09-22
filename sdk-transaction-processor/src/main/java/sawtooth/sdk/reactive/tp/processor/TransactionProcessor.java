@@ -1,7 +1,7 @@
 //@formatter:off
 /*-----------------------------------------------------------------------------
  Copyright 2016, 2017 Intel Corporation
- 
+
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -23,28 +23,30 @@ import java.util.concurrent.ExecutionException;
 
 public interface TransactionProcessor {
 
-  public void init() throws InterruptedException, ExecutionException;
-
-  public void shutdown();
-
-  public String getTransactionProcessorId();
-
   /**
    * Add a new handler that will process the messages adressed to it.
-   * 
+   *
    * @param handler implements the TransactionHandler interface
    */
   public void addHandler(TransactionHandler handler);
-  
-  public List<TransactionHandler> listRegisteredHandlers();
-  
+
   /**
    * Disables a handler.
-   * 
+   *
    * @param transactionFamilyName - Family of the handler
-   * @param version               - Version of the Handler
+   * @param version - Version of the Handler
    */
   public void disableHandler(String transactionFamilyName, String version);
+
+  public byte[] getExternalContextID();
+
+  public String getTransactionProcessorId();
+
+  public void init() throws InterruptedException, ExecutionException;
+
+  public List<TransactionHandler> listRegisteredHandlers();
+
+  public void shutdown();
 
 
 }

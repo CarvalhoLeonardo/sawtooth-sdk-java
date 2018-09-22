@@ -42,9 +42,9 @@ import sawtooth.sdk.reactive.common.messaging.MessageFactory;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 
 /**
- * 
+ *
  * @author Leonardo T. de Carvalho
- * 
+ *
  *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
@@ -52,12 +52,97 @@ import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 @Test
 public class SigningTest {
 
-  private static ECKey signerPrivateKey = null;
-  private static MessageFactory mFact = null;
-  SawtoothConfiguration config = new SawtoothConfiguration();
-  ThreadLocal<MessageDigest> MESSAGEDIGESTER_512 = new ThreadLocal<>();
-
+  /**
+   * Our ubiquitous Logger.
+   */
   private static final Logger LOGGER = LoggerFactory.getLogger(SigningTest.class);
+  private static MessageFactory mFact = null;
+  private static ECKey signerPrivateKey = null;
+
+  /**
+   * This method decompress the signature under test.
+   *
+   * @param compressedSignature
+   * @return Decompressed signature.
+   */
+  private static byte[] decompressSignature(byte[] compressedSignature) {
+    byte[] r = Arrays.copyOfRange(compressedSignature, 0, compressedSignature.length / 2);
+    byte[] s = Arrays.copyOfRange(compressedSignature, compressedSignature.length / 2,
+        compressedSignature.length);
+    byte[] output = null;
+    try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+      DEROutputStream derOutputStream = new DEROutputStream(byteArrayOutputStream);
+      ASN1EncodableVector v = new ASN1EncodableVector();
+      v.add(new ASN1Integer(new BigInteger(1, r)));
+      v.add(new ASN1Integer(new BigInteger(1, s)));
+      derOutputStream.writeObject(new DERSequence(v));
+      output = byteArrayOutputStream.toByteArray();
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+
+    return output;
+
+  }
+
+
+  /**
+   *
+   * Test helpers.
+   *
+   *
+   * This 2 methods help in the test of this validation:
+   *
+   *
+// @formatter:off
+   def verify(self, signature, message, public_key):
+          try:
+              sig_bytes = bytes.fromhex(signature)
+
+              sig = public_key.secp256k1_public_key.ecdsa_deserialize_compact(
+                  sig_bytes)
+              return public_key.secp256k1_public_key.ecdsa_verify(message, sig)
+          # pylint: disable=broad-except
+          except Exception:
+              return False
+
+// @formatter:on
+   *
+   *
+   * Present in sec256k1.py.
+   *
+   *    This method makes the exact same operation that will happen on the server.
+   *
+   **/
+  private static boolean testPythonServerBatchValidation(BatchHeader header,
+      byte[] headerSignatureGenerated) throws AssertFailException, IOException {
+
+    byte[] derSignature = decompressSignature(headerSignatureGenerated);
+
+    Sha256Hash batchHeaderHashed = Sha256Hash.of(header.toByteArray());
+
+    ECKey pubKey = ECKey.fromPublicOnly(
+        new BigInteger(FormattingUtils.hexStringToByteArray(header.getSignerPublicKey()))
+            .toByteArray());
+
+    Assert.assertTrue(ECKey.decompressPoint(pubKey.getPubKeyPoint()).isValid(),
+        "Header Public key failed the decompressed validation.");
+
+    assertTrue(pubKey.verify(batchHeaderHashed.getBytes(), derSignature),
+        "Header Public key signature verification failed.");
+
+    assertTrue(
+        NativeSecp256k1.verify(batchHeaderHashed.getBytes(), derSignature, pubKey.getPubKey()),
+        "Native signature verification failed.");
+
+    return true;
+
+  }
+
+  SawtoothConfiguration config = new SawtoothConfiguration();
+
+  ThreadLocal<MessageDigest> MESSAGEDIGESTER_512 = new ThreadLocal<>();
 
   @BeforeClass
   public void setUp() throws FileNotFoundException, IOException {
@@ -86,49 +171,13 @@ public class SigningTest {
   }
 
   /**
-   * This test is for signature validations on the Sawtooth Validator at
-   * (https://github.com/hyperledger/sawtooth-core/blob/master/validator/sawtooth_validator/gossip/signature_verifier.py)
-   * 
-   * 
-   * @throws InvalidProtocolBufferException
-   * @throws AssertFailException
-   * 
-   */
-  @Test
-  public void testPythonCompability() throws InvalidProtocolBufferException, AssertFailException {
-    byte[] headerSignature = FormattingUtils.hexStringToByteArray(
-        "dda4bef2b09232471b518fe66bbb8c6214b8ffe68fe90fab07c793d95d64f83f05ab32e6c4c75a12c1b9c45b3667da2395e74ec9d4b1886bdd9cc760dc9673a6");
-    byte[] header = FormattingUtils.hexStringToByteArray(
-        "0a423032626434663763646433666332353237333532343935303938343665663166353234383165613862363332303035346239613537313536333464316139643165361280016366346465326265373533636236636538646230336662633135303533353662366232316234306563613064666532666666666237626231393933663966323937643732383566326637343339653830653836623636303563336432653862613966626337346532303833663233306464326232363639623663336662363036");
-    byte[] publicKey = FormattingUtils
-        .hexStringToByteArray("02bd4f7cdd3fc252735249509846ef1f52481ea8b6320054b9a5715634d1a9d1e6");
-
-    byte[] derSignature = decompressSignature(headerSignature);
-
-    BatchHeader constructedHeader = BatchHeader.parseFrom(ByteString.copyFrom(header));
-    Sha256Hash batchHeaderHashed = Sha256Hash.of(constructedHeader.toByteArray());
-
-    ECKey pubKey = ECKey.fromPublicOnly(publicKey);
-
-    assertTrue(NativeSecp256k1.verify(batchHeaderHashed.getBytes(), derSignature, publicKey),
-        "Native signature verification failed.");
-
-    Assert.assertTrue(ECKey.decompressPoint(pubKey.getPubKeyPoint()).isValid(),
-        "Generated Pub key failed the decompressed validation.");
-
-    assertTrue(pubKey.verify(batchHeaderHashed.getBytes(), derSignature),
-        "Generated Pub Key signature verification failed.");
-
-  }
-
-  /**
-   * 
+   *
    * This method verifies the libraries minimal adherence to the operations that will be performed.
-   * 
+   *
    * @throws AssertFailException
    */
 
-  @Test(dependsOnMethods = {"testPythonCompability"})
+  @Test(dependsOnMethods = { "testPythonCompability" })
   public void testBasicSigning() throws AssertFailException {
 
     assertTrue(NativeSecp256k1.secKeyVerify(signerPrivateKey.getPrivKeyBytes()),
@@ -158,13 +207,32 @@ public class SigningTest {
   }
 
   /**
-   * 
+   *
+   * Tests the validity of the Batch created by the MessageFactory.
+   *
+   * @throws NoSuchAlgorithmException
+   * @throws AssertFailException
+   * @throws IOException
+   */
+  @Test(dependsOnMethods = { "testBasicSigning" })
+  public void testBatchSigning() throws NoSuchAlgorithmException, AssertFailException, IOException {
+    ByteBuffer payload = ByteBuffer.wrap("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes());
+    Message intTX = mFact.getProcessRequest("", payload, null, null, null, null);
+    Batch toSend = mFact.createBatch(Arrays.asList(intTX), true);
+    BatchHeader constructedHeader = BatchHeader.parseFrom(toSend.getHeader());
+    Assert.assertTrue(testPythonServerBatchValidation(constructedHeader,
+        FormattingUtils.hexStringToByteArray(toSend.getHeaderSignature())));
+
+  }
+
+  /**
+   *
    * Tests the manual steps defined in the <a href=
    * "https://sawtooth.hyperledger.org/docs/core/releases/1.0/_autogen/txn_submit_tutorial.html#building-the-transaction">Documentation</a>.
-   * 
+   *
    * @throws AssertFailException
    */
-  @Test(dependsOnMethods = {"testBasicSigning"})
+  @Test(dependsOnMethods = { "testBasicSigning" })
   public void testManualTransactioHeaderSigning() throws AssertFailException {
 
     byte[] publicKey = Utils.bigIntegerToBytes(new BigInteger(1, signerPrivateKey.getPubKey()), 32);
@@ -207,16 +275,53 @@ public class SigningTest {
         FormattingUtils.hexStringToByteArray(thBuilder.getSignerPublicKey())));
 
   }
-  
+
+
   /**
-   * 
-   *    Tests the validity of the Transaction Header created by the MessageFactory.
-   * 
+   * This test is for signature validations on the Sawtooth Validator at
+   * (https://github.com/hyperledger/sawtooth-core/blob/master/validator/sawtooth_validator/gossip/signature_verifier.py)
+   *
+   *
+   * @throws InvalidProtocolBufferException
+   * @throws AssertFailException
+   *
+   */
+  @Test
+  public void testPythonCompability() throws InvalidProtocolBufferException, AssertFailException {
+    byte[] headerSignature = FormattingUtils.hexStringToByteArray(
+        "dda4bef2b09232471b518fe66bbb8c6214b8ffe68fe90fab07c793d95d64f83f05ab32e6c4c75a12c1b9c45b3667da2395e74ec9d4b1886bdd9cc760dc9673a6");
+    byte[] header = FormattingUtils.hexStringToByteArray(
+        "0a423032626434663763646433666332353237333532343935303938343665663166353234383165613862363332303035346239613537313536333464316139643165361280016366346465326265373533636236636538646230336662633135303533353662366232316234306563613064666532666666666237626231393933663966323937643732383566326637343339653830653836623636303563336432653862613966626337346532303833663233306464326232363639623663336662363036");
+    byte[] publicKey = FormattingUtils
+        .hexStringToByteArray("02bd4f7cdd3fc252735249509846ef1f52481ea8b6320054b9a5715634d1a9d1e6");
+
+    byte[] derSignature = decompressSignature(headerSignature);
+
+    BatchHeader constructedHeader = BatchHeader.parseFrom(ByteString.copyFrom(header));
+    Sha256Hash batchHeaderHashed = Sha256Hash.of(constructedHeader.toByteArray());
+
+    ECKey pubKey = ECKey.fromPublicOnly(publicKey);
+
+    assertTrue(NativeSecp256k1.verify(batchHeaderHashed.getBytes(), derSignature, publicKey),
+        "Native signature verification failed.");
+
+    Assert.assertTrue(ECKey.decompressPoint(pubKey.getPubKeyPoint()).isValid(),
+        "Generated Pub key failed the decompressed validation.");
+
+    assertTrue(pubKey.verify(batchHeaderHashed.getBytes(), derSignature),
+        "Generated Pub Key signature verification failed.");
+
+  }
+
+  /**
+   *
+   * Tests the validity of the Transaction Header created by the MessageFactory.
+   *
    * @throws AssertFailException
    * @throws NoSuchAlgorithmException
    */
 
-  @Test(dependsOnMethods = {"testBasicSigning"})
+  @Test(dependsOnMethods = { "testBasicSigning" })
   public void testTransactioHeaderSigning() throws AssertFailException, NoSuchAlgorithmException {
 
     MESSAGEDIGESTER_512.get().reset();
@@ -247,106 +352,6 @@ public class SigningTest {
 
     assertTrue(NativeSecp256k1.verify(transactionHeaderHashed.getBytes(), signature.encodeToDER(),
         FormattingUtils.hexStringToByteArray(tHeader.getSignerPublicKey())));
-
-  }
-
-  /**
-   * 
-   * Tests the validity of the Batch created by the MessageFactory.
-   * 
-   * @throws NoSuchAlgorithmException
-   * @throws AssertFailException
-   * @throws IOException
-   */
-  @Test(dependsOnMethods = {"testBasicSigning"})
-  public void testBatchSigning() throws NoSuchAlgorithmException, AssertFailException, IOException {
-    ByteBuffer payload = ByteBuffer.wrap("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes());
-    Message intTX = mFact.getProcessRequest("", payload, null, null, null, null);
-    Batch toSend = mFact.createBatch(Arrays.asList(intTX), true);
-    BatchHeader constructedHeader = BatchHeader.parseFrom(toSend.getHeader());
-    Assert.assertTrue(testPythonServerBatchValidation(constructedHeader,
-        FormattingUtils.hexStringToByteArray(toSend.getHeaderSignature())));
-
-  }
-
-
-  /**
-   * 
-   * Test helpers.
-   *
-   *
-   * This 2 methods help in the test of this validation:
-   * 
-   * 
-// @formatter:off    
-   def verify(self, signature, message, public_key):
-          try:
-              sig_bytes = bytes.fromhex(signature)
-  
-              sig = public_key.secp256k1_public_key.ecdsa_deserialize_compact(
-                  sig_bytes)
-              return public_key.secp256k1_public_key.ecdsa_verify(message, sig)
-          # pylint: disable=broad-except
-          except Exception:
-              return False
-
-// @formatter:on
-   * 
-   * 
-   * Present in sec256k1.py.
-   * 
-   *    This method makes the exact same operation that will happen on the server.
-   * 
-   **/
-  private static boolean testPythonServerBatchValidation(BatchHeader header,
-      byte[] headerSignatureGenerated) throws AssertFailException, IOException {
-
-    byte[] derSignature = decompressSignature(headerSignatureGenerated);
-
-    Sha256Hash batchHeaderHashed = Sha256Hash.of(header.toByteArray());
-
-    ECKey pubKey = ECKey.fromPublicOnly(
-        new BigInteger(FormattingUtils.hexStringToByteArray(header.getSignerPublicKey()))
-            .toByteArray());
-
-    Assert.assertTrue(ECKey.decompressPoint(pubKey.getPubKeyPoint()).isValid(),
-        "Header Public key failed the decompressed validation.");
-
-    assertTrue(pubKey.verify(batchHeaderHashed.getBytes(), derSignature),
-        "Header Public key signature verification failed.");
-
-    assertTrue(
-        NativeSecp256k1.verify(batchHeaderHashed.getBytes(), derSignature, pubKey.getPubKey()),
-        "Native signature verification failed.");
-
-    return true;
-
-  }
-
-  /**
-   * This method decompress the signature under test.
-   * 
-   * @param compressedSignature
-   * @return Decompressed signature.
-   */
-  private static byte[] decompressSignature(byte[] compressedSignature) {
-    byte[] r = Arrays.copyOfRange(compressedSignature, 0, compressedSignature.length / 2);
-    byte[] s = Arrays.copyOfRange(compressedSignature, compressedSignature.length / 2,
-        compressedSignature.length);
-    byte[] output = null;
-    try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-      DEROutputStream derOutputStream = new DEROutputStream(byteArrayOutputStream);
-      ASN1EncodableVector v = new ASN1EncodableVector();
-      v.add(new ASN1Integer(new BigInteger(1, r)));
-      v.add(new ASN1Integer(new BigInteger(1, s)));
-      derOutputStream.writeObject(new DERSequence(v));
-      output = byteArrayOutputStream.toByteArray();
-    } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    }
-
-    return output;
 
   }
 

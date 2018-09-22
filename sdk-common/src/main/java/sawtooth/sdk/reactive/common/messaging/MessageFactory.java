@@ -33,8 +33,20 @@ import sawtooth.sdk.protobuf.TransactionList;
 import sawtooth.sdk.reactive.common.crypto.SawtoothSigner;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 
+/**
+ *
+ * @author Leonardo T. de Carvalho
+ *
+ *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ *
+ */
 public class MessageFactory extends CoreMessagesFactory {
 
+
+  /**
+   * Our ubiquitous Logger.
+   */
   private final static Logger LOGGER = LoggerFactory.getLogger(MessageFactory.class);
   final String familyName;
   final String familyVersion;
@@ -82,6 +94,9 @@ public class MessageFactory extends CoreMessagesFactory {
       signerPublicKeyEncodedPointByte = publicKey.getPubKeyPoint().getEncoded(true);
       signerPublicKeyString = FormattingUtils.bytesToHex(publicKey.getPubKey());
     }
+
+    LOGGER.debug("Public key {}.", signerPublicKeyString);
+
     nameSpacesMap = new HashMap<String, String>();
     for (String eachNS : nameSpaces) {
       nameSpacesMap.put(eachNS,
@@ -166,7 +181,12 @@ public class MessageFactory extends CoreMessagesFactory {
 
   public TpProcessRequest createTpProcessRequest(String contextId, ByteBuffer payload,
       List<String> inputs, List<String> outputs, List<String> dependencies, String batcherPubKey)
-      throws NoSuchAlgorithmException {
+      throws NoSuchAlgorithmException, InvalidProtocolBufferException {
+
+    if (batcherPubKey == null || batcherPubKey.isEmpty()) {
+      throw new InvalidProtocolBufferException("No batcher public key informed.");
+    }
+
     TpProcessRequest.Builder reqBuilder = TpProcessRequest.newBuilder();
 
     String hexFormattedDigest = generateHASH512Hex(payload.array());
@@ -218,7 +238,10 @@ public class MessageFactory extends CoreMessagesFactory {
 
   private Transaction createTransaction(ByteBuffer payload, List<String> inputs,
       List<String> outputs, List<String> dependencies, String batcherPubKey)
-      throws NoSuchAlgorithmException {
+      throws NoSuchAlgorithmException, InvalidProtocolBufferException {
+    if (batcherPubKey == null || batcherPubKey.isEmpty()) {
+      throw new InvalidProtocolBufferException("No batcher public key informed.");
+    }
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
     transactionBuilder
         .setPayload(ByteString.copyFrom(payload.toString(), StandardCharsets.US_ASCII));
@@ -248,13 +271,16 @@ public class MessageFactory extends CoreMessagesFactory {
   }
 
   public final TransactionHeader createTransactionHeader(String payloadSha512, List<String> inputs,
-      List<String> outputs, List<String> dependencies, boolean needsNonce, String batcherPubKey) {
+      List<String> outputs, List<String> dependencies, boolean needsNonce, String batcherPubKey)
+      throws InvalidProtocolBufferException {
+    if (batcherPubKey == null || batcherPubKey.isEmpty()) {
+      throw new InvalidProtocolBufferException("No batcher public key informed.");
+    }
     TransactionHeader.Builder thBuilder = TransactionHeader.newBuilder();
     thBuilder.setFamilyName(familyName);
     thBuilder.setFamilyVersion(familyVersion);
     thBuilder.setSignerPublicKey(getPubliceyString());
-    thBuilder.setBatcherPublicKey(
-        batcherPubKey != null ? batcherPubKey : thBuilder.getSignerPublicKey());
+    thBuilder.setBatcherPublicKey(batcherPubKey);
     thBuilder.setPayloadSha512(payloadSha512);
 
     if (needsNonce) {
@@ -308,7 +334,10 @@ public class MessageFactory extends CoreMessagesFactory {
 
   public Message getProcessRequest(String contextId, ByteBuffer payload, List<String> inputs,
       List<String> outputs, List<String> dependencies, String batcherPubKey)
-      throws NoSuchAlgorithmException {
+      throws NoSuchAlgorithmException, InvalidProtocolBufferException {
+    if (batcherPubKey == null || batcherPubKey.isEmpty()) {
+      throw new InvalidProtocolBufferException("No batcher public key informed.");
+    }
     Message newMessage =
         Message.newBuilder()
             .setContent(createTpProcessRequest(contextId, payload, inputs, outputs, dependencies,
@@ -367,16 +396,6 @@ public class MessageFactory extends CoreMessagesFactory {
   public byte[] getSignerPublicKeyEncodedPointByte() {
     return signerPublicKeyEncodedPointByte;
   }
-  /*
-   * 
-   * public Message getTransactionRequest(ByteBuffer payload, List<String> inputs, List<String>
-   * outputs, List<String> dependencies) { Message newMessage =
-   * Message.newBuilder().setContent(createTransaction(payload, inputs, outputs, dependencies,
-   * null).getPayload()) .setCorrelationId(correlationId).setMessageType(MessageType.
-   * CLIENT_TRANSACTION_GET_REQUEST_VALUE).build();
-   * 
-   * return newMessage; }
-   */
 
   public Message getUnregisterRequest() {
     Message newMessage = Message.newBuilder().setContent(createTpUnregisterRequest().toByteString())

@@ -16,9 +16,11 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import com.google.protobuf.InvalidProtocolBufferException;
 import sawtooth.sdk.protobuf.Batch;
+import sawtooth.sdk.protobuf.BatchList;
 import sawtooth.sdk.protobuf.ClientBatchStatusResponse;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
+import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
 import sawtooth.sdk.reactive.tp.processor.DefaultTransactionProcessorImpl;
 
@@ -140,7 +142,7 @@ public class TestExternalValidator extends BaseTest {
    *
    * This will send a Batch Request and expect a Batch Response.
    *
-   * Since the External Validator probably don´t get a Handler, we will not test the procesing on
+   * Since the External Validator probably don´t get a Handler, we will not test the processing on
    * our side.
    *
    * @throws InterruptedException
@@ -156,11 +158,22 @@ public class TestExternalValidator extends BaseTest {
         .asList(testTH.generateAddress(testTH.getNameSpaces().iterator().next(), "aaaaaaaaaaaa"));
     String correlationID = UUID.randomUUID().toString();
 
-    Message preq = testTH.getMessageFactory().getProcessRequest(null, lameData, lameAddress,
-        lameAddress, null, null);
-    Batch batchReq = testTH.getMessageFactory().createBatch(Arrays.asList(preq), true);
+
+    Message lameProcessRequest = testTH.getMessageFactory().getProcessRequest(
+        FormattingUtils.bytesToHex(testTH.getExternalContextID()), lameData, lameAddress,
+        lameAddress, null, testTH.getMessageFactory().getPubliceyString());
+
+    Batch lameBatchRequest =
+        testTH.getMessageFactory().createBatch(Arrays.asList(lameProcessRequest), true);
+
+    /*
+     * Yeah, you need to send a BatchList, NOT a Batch here...
+     */
+    BatchList.Builder rbl = BatchList.newBuilder();
+    rbl.addBatches(lameBatchRequest);
+
     Message theReq =
-        Message.newBuilder().setContent(batchReq.toByteString()).setCorrelationId(correlationID)
+        Message.newBuilder().setContent(rbl.build().toByteString()).setCorrelationId(correlationID)
             .setMessageType(MessageType.CLIENT_BATCH_SUBMIT_REQUEST).build();
 
     Message answer = tpUnderTest.send(theReq).get();

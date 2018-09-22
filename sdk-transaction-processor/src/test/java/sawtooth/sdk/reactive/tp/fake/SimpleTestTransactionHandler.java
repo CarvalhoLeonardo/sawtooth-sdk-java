@@ -29,7 +29,7 @@ import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
  *
  *         This implementation is intended to answer simple requests, like PING and
  *         REGISTRATION_REQUEST
- * 
+ *
  *         Don't forget to run "sawset proposal create
  *         sawtooth.validator.transaction_families='[..., {"family":"sawtooth_settings",
  *         "version":"1.0"}, {"family":"coretests", "version":"0.0"}]'"
@@ -38,7 +38,9 @@ import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
 public class SimpleTestTransactionHandler implements TransactionHandler, SawtoothAddressFactory {
 
   private final static Logger LOGGER = LoggerFactory.getLogger(SimpleTestTransactionHandler.class);
+
   public final static MessageFactory TEST_MESSAGE_FACTORY;
+
   static {
     MessageFactory tmpMF = null;
     try {
@@ -49,6 +51,8 @@ public class SimpleTestTransactionHandler implements TransactionHandler, Sawtoot
     }
     TEST_MESSAGE_FACTORY = tmpMF;
   }
+  private byte[] externalContextID = null;
+
 
 
   @Override
@@ -64,6 +68,7 @@ public class SimpleTestTransactionHandler implements TransactionHandler, Sawtoot
     return TEST_MESSAGE_FACTORY.getNameSpaces().get(nSpace)
         + hData.substring(hData.length() - MESSAGE_SIZE_DELIMITER);
   }
+
 
   @Override
   public final String generateAddress(final String nSpace, final String address) {
@@ -84,6 +89,10 @@ public class SimpleTestTransactionHandler implements TransactionHandler, Sawtoot
     }).collect(Collectors.toList());
   }
 
+  public final byte[] getExternalContextID() {
+    return externalContextID;
+  }
+
   @Override
   public MessageFactory getMessageFactory() {
     return TEST_MESSAGE_FACTORY;
@@ -97,6 +106,11 @@ public class SimpleTestTransactionHandler implements TransactionHandler, Sawtoot
   @Override
   public String getVersion() {
     return TEST_MESSAGE_FACTORY.getFamilyVersion();
+  }
+
+  @Override
+  public void setContextId(byte[] externalContextID) {
+    this.externalContextID = externalContextID;
   }
 
   @Override
