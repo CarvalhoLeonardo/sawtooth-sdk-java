@@ -35,6 +35,12 @@ The java version may be 10.
 
 Version 3.5.0 or higher.
 
+### Sawtooth
+
+. Versions 1.0.4 or 1.0.5, with [this patch](https://github.com/CarvalhoLeonardo/sawtooth-core/commit/1ce3dea3aaf6075dc738ebf0022b6fde970b3fa2), where used to validate.
+
+. To run all tests, please register the test family, with `sawset proposal create sawtooth.validator.transaction_families='[..., {"family":"sawtooth_settings","version":"1.0"}, {"family":"coretests", "version":"0.0"}]'` 
+
 ### Bitcoin Native Secp256k1 Library
 
 The signing methods are based on Bitcoin code.
@@ -55,9 +61,8 @@ The REST tests would need a running Sawtooth network.
 
 If it isn't at localhost, you can change the address on the maven CLI:
 
-- `mvn -Dsw_rest_url="http(s):<REST API ADDRESS>:<REST API PORT>" -Dsw_validator_url="http(s)://<VALIDATOR ADDRESS>:<VALIDATOR PORT>" clean test` 
+- `mvn -Dsw_rest_url="http(s):<REST API ADDRESS>:<REST API PORT>" -Dsw_validator_url="tcp://<VALIDATOR ADDRESS>:<VALIDATOR PORT>" clean test` 
 
-Keep in mind that the Integer TP test only validates the Message structure validity (signatures, hashes, etc), and the submitted transaction will not work.
 
 
 ## Built With
