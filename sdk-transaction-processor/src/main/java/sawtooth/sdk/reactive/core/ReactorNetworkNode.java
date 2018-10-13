@@ -175,7 +175,6 @@ public class ReactorNetworkNode implements Runnable {
 
 
     if (server) {
-
       LOGGER.debug(NODE_IDENTIFICATION + " Server mode");
       frontendSocket
           .setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
@@ -221,7 +220,7 @@ public class ReactorNetworkNode implements Runnable {
       looper.addPoller(pi, mesgReceiver, null);
 
       multipleSenderFlux.groups().elementAt(n - 1).doOnNext(msf -> {
-        LOGGER.debug(" - > {}_{} subscribed on Paraller Flux #{}", this.NODE_IDENTIFICATION, n,
+        LOGGER.debug(" - > {}_{} subscribed on Parallel Flux #{}", this.NODE_IDENTIFICATION, n,
             msf.key());
       }).block().subscribe(
           new SenderAgent(n, worker, this.NODE_IDENTIFICATION, remoteRouterID, corrIDsAtWork));

@@ -58,6 +58,7 @@ public class SigningTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(SigningTest.class);
   private static MessageFactory mFact = null;
   private static ECKey signerPrivateKey = null;
+  private static ECKey signerPublicKey = null;
 
   /**
    * This method decompress the signature under test.
@@ -78,7 +79,6 @@ public class SigningTest {
       derOutputStream.writeObject(new DERSequence(v));
       output = byteArrayOutputStream.toByteArray();
     } catch (IOException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     }
 
@@ -146,18 +146,14 @@ public class SigningTest {
 
   @BeforeClass
   public void setUp() throws FileNotFoundException, IOException {
-    try (
-        BufferedReader privateKeyReader = new BufferedReader(
-            new FileReader(SigningTest.class.getClassLoader().getResource("jack.priv").getFile()));
-        BufferedReader publicKeyReader = new BufferedReader(
-            new FileReader(SigningTest.class.getClassLoader().getResource("jack.pub").getFile()))) {
+    try (BufferedReader privateKeyReader = new BufferedReader(
+        new FileReader(SigningTest.class.getClassLoader().getResource("jack.priv").getFile()))) {
       String linePrivate = privateKeyReader.readLine();
       BigInteger privkey = new BigInteger(1, Hex.decode(linePrivate));
       signerPrivateKey = ECKey.fromPrivate(privkey, false);
+      signerPublicKey = ECKey.fromPublicOnly(ECKey.publicKeyFromPrivate(privkey, true));
 
-      String linePublic = publicKeyReader.readLine();
-      privkey = new BigInteger(1, Hex.decode(linePublic));
-      mFact = new MessageFactory("testmessagefactory", "0.0.0", signerPrivateKey, null,
+      mFact = new MessageFactory("testmessagefactory", "0.0.0", signerPrivateKey, signerPublicKey,
           "testmessagefactory");
       MESSAGEDIGESTER_512.set(MessageDigest.getInstance("SHA-512"));
     } catch (IOException e) {
@@ -204,6 +200,11 @@ public class SigningTest {
         signerPrivateKey.getPubKey()));
     assertTrue(NativeSecp256k1.verify(dataHashed.getBytes(), nativeSignature,
         signerPrivateKey.getPubKey()));
+
+    assertTrue(NativeSecp256k1.verify(dataHashed.getBytes(), decompactedSignature,
+        signerPublicKey.getPubKey()));
+    assertTrue(NativeSecp256k1.verify(dataHashed.getBytes(), nativeSignature,
+        signerPublicKey.getPubKey()));
   }
 
   /**
@@ -217,7 +218,8 @@ public class SigningTest {
   @Test(dependsOnMethods = { "testBasicSigning" })
   public void testBatchSigning() throws NoSuchAlgorithmException, AssertFailException, IOException {
     ByteBuffer payload = ByteBuffer.wrap("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes());
-    Message intTX = mFact.getProcessRequest("", payload, null, null, null, null);
+    Message intTX =
+        mFact.getProcessRequest("", payload, null, null, null, signerPublicKey.getPublicKeyAsHex());
     Batch toSend = mFact.createBatch(Arrays.asList(intTX), true);
     BatchHeader constructedHeader = BatchHeader.parseFrom(toSend.getHeader());
     Assert.assertTrue(testPythonServerBatchValidation(constructedHeader,
@@ -319,10 +321,12 @@ public class SigningTest {
    *
    * @throws AssertFailException
    * @throws NoSuchAlgorithmException
+   * @throws InvalidProtocolBufferException
    */
 
   @Test(dependsOnMethods = { "testBasicSigning" })
-  public void testTransactioHeaderSigning() throws AssertFailException, NoSuchAlgorithmException {
+  public void testTransactioHeaderSigning()
+      throws AssertFailException, NoSuchAlgorithmException, InvalidProtocolBufferException {
 
     MESSAGEDIGESTER_512.get().reset();
     byte[] payloadBin = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa".getBytes();
@@ -330,7 +334,8 @@ public class SigningTest {
         FormattingUtils.bytesToHex(MESSAGEDIGESTER_512.get().digest(payloadBin));
 
     TransactionHeader tHeader = mFact.createTransactionHeader(hexFormattedDigest,
-        Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), true, null);
+        Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), true,
+        signerPublicKey.getPublicKeyAsHex());
 
     byte[] transactionHeaderByte = tHeader.toString().getBytes(StandardCharsets.US_ASCII);
     Sha256Hash transactionHeaderHashed = Sha256Hash.of(transactionHeaderByte);
@@ -348,7 +353,10 @@ public class SigningTest {
     // Verifying signature from the Native Library (the Validator will run this code
     // locally)
     assertTrue(NativeSecp256k1.verify(transactionHeaderHashed.getBytes(), nativeSignature,
-        signerPrivateKey.getPubKey()));
+        signerPublicKey.getPubKey()));
+
+    assertTrue(NativeSecp256k1.verify(transactionHeaderHashed.getBytes(), signature.encodeToDER(),
+        FormattingUtils.hexStringToByteArray(signerPublicKey.getPublicKeyAsHex())));
 
     assertTrue(NativeSecp256k1.verify(transactionHeaderHashed.getBytes(), signature.encodeToDER(),
         FormattingUtils.hexStringToByteArray(tHeader.getSignerPublicKey())));
