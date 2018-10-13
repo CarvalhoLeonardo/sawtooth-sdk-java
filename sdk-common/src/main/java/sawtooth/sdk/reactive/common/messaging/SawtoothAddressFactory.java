@@ -1,6 +1,7 @@
 package sawtooth.sdk.reactive.common.messaging;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 /**
  * 
@@ -15,9 +16,11 @@ import java.nio.ByteBuffer;
  */
 public interface SawtoothAddressFactory {
 
-  public String generateAddress(String... names);
+  public String generateAddress(String nameSpace, String address);
   
-  public String generateAddress(ByteBuffer data);
+  public List<String> generateAddresses(String nameSpace, String... addresses);
+  
+  public String generateAddress(String nameSpace, ByteBuffer data);
   
   
 }
