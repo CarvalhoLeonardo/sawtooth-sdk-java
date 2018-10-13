@@ -16,70 +16,94 @@ import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
 
 /**
- * 
- * This class will route the received message, asynchronously, to the Flux publishing it
+ *
+ * @author Leonardo T. de Carvalho
+ *
+ *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
  */
-
 public class ReceivingHandler implements ZLoop.IZLoopHandler {
 
-  protected final EmitterProcessor<Message> recEmitter;
+  /**
+   * Our ubiquitous Logger.
+   */
+  private static final Logger LOGGER = LoggerFactory.getLogger(ReceivingHandler.class);
+
+  /**
+   * Map to hold the messages being processed destinations.
+   */
+  final Map<String, byte[]> addressCorrelationMapping;
   protected String idReceiver;
   protected String prefixId;
-  private final static Logger LOGGER = LoggerFactory.getLogger(ReceivingHandler.class);
-  final Map<String,byte[]> addressCorrelationMapping;
+  /**
+   * Incoming flux emitter.
+   */
+  protected final EmitterProcessor<Message> recEmitter;
 
-  public ReceivingHandler(EmitterProcessor<Message> recEmitter, String prefixId, int idSender, Map<String,byte[]> externaCorrelationMapping) {
+  /**
+   * Constructor that binds the identity and emitter to the worker unit.
+   *
+   * @param recEmitter
+   * @param prefixId
+   * @param idSender
+   * @param externaCorrelationMapping
+   */
+  public ReceivingHandler(final EmitterProcessor<Message> recEmitter, final String prefixId,
+      final int idSender, final Map<String, byte[]> externaCorrelationMapping) {
     super();
     this.recEmitter = recEmitter;
-    this.idReceiver = prefixId+"_RecHandler_"+idSender;
+    this.idReceiver = prefixId + "_RecHandler_" + idSender;
     this.addressCorrelationMapping = externaCorrelationMapping;
     LOGGER.debug("Created " + this.idReceiver);
-    
+
   }
 
   @Override
-  public int handle(ZLoop loop, PollItem item, Object arg) {
-    LOGGER.debug(this.idReceiver+" handle()");
+  public final int handle(final ZLoop loop, final PollItem item, final Object arg) {
+    LOGGER.debug(this.idReceiver + " handle()");
     ZMsg receivedMessage = ZMsg.recvMsg(item.getSocket());
-    
+
     if (LOGGER.isDebugEnabled()) {
       receivedMessage.dump(System.out);
       LOGGER.debug("Message Dump ###############################");
     }
-    
-    if (! receivedMessage.getLast().hasData()) {
+
+    if (!receivedMessage.getLast().hasData()) {
       // ROUTER_PROBE message? We hope so.
-      LOGGER.debug("{} Probable ROUTER_PROBE from {}, answering....",this.idReceiver,receivedMessage.getFirst().getString(StandardCharsets.UTF_8));
-      receivedMessage.send(item.getSocket(),true);
+      LOGGER.debug("{} Probable ROUTER_PROBE from {}, answering....", this.idReceiver,
+          receivedMessage.getFirst().getString(StandardCharsets.UTF_8));
+      receivedMessage.send(item.getSocket(), true);
       return 0;
     }
 
     byte[] routerID = receivedMessage.pop().getData();
-    LOGGER.debug("{} Received the Validator ID {} on socket {}.",this.idReceiver,routerID,new String(item.getSocket().getIdentity()));
+    LOGGER.debug("{} Received the Validator ID {} on socket {}.", this.idReceiver, routerID,
+        new String(item.getSocket().getIdentity()));
     Message sawtoothMessage;
     try {
-      LOGGER.debug("Parsing message with {} frames and {} bytes...",receivedMessage.size(),receivedMessage.contentSize());
+      LOGGER.debug("Parsing message with {} frames and {} bytes...", receivedMessage.size(),
+          receivedMessage.contentSize());
       Iterator<ZFrame> frames = receivedMessage.iterator();
       ByteArrayOutputStream bbuffer = new ByteArrayOutputStream();
       while (frames.hasNext()) {
-          ZFrame frame = frames.next();
-          byte[] frameData = frame.getData();
-          bbuffer.write(frameData);
+        ZFrame frame = frames.next();
+        byte[] frameData = frame.getData();
+        bbuffer.write(frameData);
       }
       LOGGER.debug("Parsed.");
       sawtoothMessage = Message.parseFrom(bbuffer.toByteArray());
       if (MessageType.PING_REQUEST.equals(sawtoothMessage.getMessageType())) {
-        addressCorrelationMapping.put(sawtoothMessage.getCorrelationId(),routerID);
+        addressCorrelationMapping.put(sawtoothMessage.getCorrelationId(), routerID);
       } else {
-        addressCorrelationMapping.put(sawtoothMessage.getCorrelationId(),idReceiver.getBytes());  
+        addressCorrelationMapping.put(sawtoothMessage.getCorrelationId(), idReceiver.getBytes());
       }
-        
-      
 
-      LOGGER.debug(this.idReceiver+" Emitting sawtooth Message "+ sawtoothMessage.toString());
+
+
+      LOGGER.debug(this.idReceiver + " Emitting sawtooth Message " + sawtoothMessage.toString());
       recEmitter.onNext(sawtoothMessage);
-      LOGGER.debug(this.idReceiver+" emitted to "+recEmitter.name());
+      LOGGER.debug(this.idReceiver + " emitted to " + recEmitter.name());
 
     } catch (IOException e) {
       LOGGER.error("Error on working the message.");
