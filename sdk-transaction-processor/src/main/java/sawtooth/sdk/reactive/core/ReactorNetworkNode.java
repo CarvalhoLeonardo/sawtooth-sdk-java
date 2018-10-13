@@ -183,7 +183,7 @@ public class ReactorNetworkNode implements Runnable {
         LOGGER.debug(NODE_IDENTIFICATION + " Server : Bound to " + mqMainAddress);
       }
     } else {
-      LOGGER.debug(NODE_IDENTIFICATION + " Client mode");
+      LOGGER.debug("{} : Client mode to {}.", NODE_IDENTIFICATION, mqMainAddress);
       if (frontendSocket.connect(mqMainAddress)) {
         // wait for probe reply before sending
         ZMsg ack = ZMsg.recvMsg(frontendSocket);
