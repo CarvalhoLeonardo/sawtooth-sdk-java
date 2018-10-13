@@ -1,7 +1,7 @@
 // @formatter:off
 /*-----------------------------------------------------------------------------
  Copyright 2016, 2017 Intel Corporation
- 
+
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -44,22 +44,15 @@ import sawtooth.sdk.protobuf.Message;
  */
 class SendReceiveThread implements Runnable {
 
-  private String url;
-  private ZMQ.Socket socket;
-  private Lock lock = new ReentrantLock();
-  private Condition condition = lock.newCondition();
-  private ConcurrentHashMap<String, Future<Message>> futures;
-  private LinkedBlockingQueue<MessageWrapper> receiveQueue;
-  private ZContext context;
-  private final static Logger LOGGER = LoggerFactory.getLogger(SendReceiveThread.class);
+  private class DisconnectThread extends Thread {
+    protected ConcurrentHashMap<String, Future<Message>> futures;
+    protected LinkedBlockingQueue<MessageWrapper> receiveQueue;
 
-  public SendReceiveThread(String url, ConcurrentHashMap<String, Future<Message>> futures,
-      LinkedBlockingQueue<MessageWrapper> recvQueue) {
-    super();
-    this.url = url;
-    this.futures = futures;
-    this.receiveQueue = recvQueue;
-    this.context = null;
+    public DisconnectThread(final LinkedBlockingQueue<MessageWrapper> receiveQueue,
+        final ConcurrentHashMap<String, Future<Message>> futures) {
+      this.receiveQueue = receiveQueue;
+      this.futures = futures;
+    }
   }
 
   /**
@@ -68,19 +61,8 @@ class SendReceiveThread implements Runnable {
   public class MessageWrapper {
     Message message;
 
-    public MessageWrapper(Message message) {
+    public MessageWrapper(final Message message) {
       this.message = message;
-    }
-  }
-
-  private class DisconnectThread extends Thread {
-    protected LinkedBlockingQueue<MessageWrapper> receiveQueue;
-    protected ConcurrentHashMap<String, Future<Message>> futures;
-
-    public DisconnectThread(LinkedBlockingQueue<MessageWrapper> receiveQueue,
-        ConcurrentHashMap<String, Future<Message>> futures) {
-      this.receiveQueue = receiveQueue;
-      this.futures = futures;
     }
   }
 
@@ -92,14 +74,14 @@ class SendReceiveThread implements Runnable {
     private ConcurrentHashMap<String, Future<Message>> futures;
     private LinkedBlockingQueue<MessageWrapper> receiveQueue;
 
-    Receiver(ConcurrentHashMap<String, Future<Message>> futures,
-        LinkedBlockingQueue<MessageWrapper> receiveQueue) {
+    Receiver(final ConcurrentHashMap<String, Future<Message>> futures,
+        final LinkedBlockingQueue<MessageWrapper> receiveQueue) {
       this.futures = futures;
       this.receiveQueue = receiveQueue;
     }
 
     @Override
-    public int handle(ZLoop loop, ZMQ.PollItem item, Object arg) {
+    public int handle(final ZLoop loop, final ZMQ.PollItem item, final Object arg) {
       LOGGER.debug("-- handle() --");
       ZMsg msg = ZMsg.recvMsg(item.getSocket());
       Iterator<ZFrame> multiPartMessage = msg.iterator();
@@ -113,15 +95,16 @@ class SendReceiveThread implements Runnable {
           ioe.printStackTrace();
         }
       }
-      LOGGER.debug("-- message :  --"+msg.toString());
+      LOGGER.debug("-- message :  -- {}", msg.toString());
       try {
         Message message = Message.parseFrom(byteArrayOutputStream.toByteArray());
         if (this.futures.containsKey(message.getCorrelationId())) {
-          LOGGER.debug("-- sawtooth message queued for future "+message.getCorrelationId()+" :  --"+message.toString());
+          LOGGER.debug("-- sawtooth message queued for future " + message.getCorrelationId()
+              + " :  --" + message.toString());
           this.futures.put(message.getCorrelationId(), CompletableFuture.completedFuture(message));
         }
         MessageWrapper wrapper = new MessageWrapper(message);
-        LOGGER.debug("-- sawtooth message queued :  --"+message.toString());
+        LOGGER.debug("-- sawtooth message queued :  --" + message.toString());
         this.receiveQueue.put(wrapper);
 
       } catch (InterruptedException ie) {
@@ -132,6 +115,29 @@ class SendReceiveThread implements Runnable {
 
       return 0;
     }
+  }
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SendReceiveThread.class);
+
+  private Lock alreadyStartedLock = new ReentrantLock();
+  private Condition condition = alreadyStartedLock.newCondition();
+  private ZContext context;
+  private ConcurrentHashMap<String, Future<Message>> futures;
+
+  private LinkedBlockingQueue<MessageWrapper> receiveQueue;
+
+  private ZMQ.Socket socket;
+
+  private String url;
+
+  public SendReceiveThread(final String url,
+      final ConcurrentHashMap<String, Future<Message>> futures,
+      final LinkedBlockingQueue<MessageWrapper> recvQueue) {
+    super();
+    this.url = url;
+    this.futures = futures;
+    this.receiveQueue = recvQueue;
+    this.context = null;
   }
 
   @Override
@@ -167,11 +173,11 @@ class SendReceiveThread implements Runnable {
 
     socket.setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
     socket.connect(url);
-    lock.lock();
+    alreadyStartedLock.lock();
     try {
       condition.signalAll();
     } finally {
-      lock.unlock();
+      alreadyStartedLock.unlock();
     }
     ZLoop eventLoop = new ZLoop(this.context);
     ZMQ.PollItem pollItem = new ZMQ.PollItem(socket, ZMQ.Poller.POLLIN);
@@ -181,11 +187,12 @@ class SendReceiveThread implements Runnable {
 
   /**
    * Used by the Stream class to send a message.
-   * 
-   * @param message protobuf Message
+   *
+   * @param message
+   * @return
    */
-  public Future<Message> sendMessage(Message message) {
-    lock.lock();
+  public Future<Message> sendMessage(final Message message) {
+    alreadyStartedLock.lock();
     try {
       if (socket == null) {
         condition.await();
@@ -193,7 +200,7 @@ class SendReceiveThread implements Runnable {
     } catch (InterruptedException ie) {
       ie.printStackTrace();
     } finally {
-      lock.unlock();
+      alreadyStartedLock.unlock();
     }
     ZMsg msg = new ZMsg();
     msg.add(message.toByteString().toByteArray());
