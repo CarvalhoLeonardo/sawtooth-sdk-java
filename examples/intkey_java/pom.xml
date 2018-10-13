@@ -16,12 +16,9 @@
 	<artifactId>intkey_java</artifactId>
 	<name>Sawtooth Java Example - Integer Key Transaction Processor</name>
 	<version>0.1.2-SNAPSHOT</version>
-
+	
 	<properties>
 		<apachelog-version>2.11.0</apachelog-version>
-		<sw_validator_url>tcp://127.0.0.1:4004</sw_validator_url>
-		<processor_id>mytesttp</processor_id>
-		<processor_parallelism>2</processor_parallelism>
 	</properties>
 
 	<build>
@@ -86,7 +83,7 @@
 			<artifactId>sdk-transaction-processor</artifactId>
 			<version>0.1.2-SNAPSHOT</version>
 		</dependency>
-
+		
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-slf4j-impl</artifactId>

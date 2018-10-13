@@ -119,8 +119,8 @@ class SendReceiveThread implements Runnable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SendReceiveThread.class);
 
-  private Lock areladyStartedLock = new ReentrantLock();
-  private Condition condition = areladyStartedLock.newCondition();
+  private Lock alreadyStartedLock = new ReentrantLock();
+  private Condition condition = alreadyStartedLock.newCondition();
   private ZContext context;
   private ConcurrentHashMap<String, Future<Message>> futures;
 
@@ -173,11 +173,11 @@ class SendReceiveThread implements Runnable {
 
     socket.setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
     socket.connect(url);
-    areladyStartedLock.lock();
+    alreadyStartedLock.lock();
     try {
       condition.signalAll();
     } finally {
-      areladyStartedLock.unlock();
+      alreadyStartedLock.unlock();
     }
     ZLoop eventLoop = new ZLoop(this.context);
     ZMQ.PollItem pollItem = new ZMQ.PollItem(socket, ZMQ.Poller.POLLIN);
@@ -192,7 +192,7 @@ class SendReceiveThread implements Runnable {
    * @return
    */
   public Future<Message> sendMessage(final Message message) {
-    areladyStartedLock.lock();
+    alreadyStartedLock.lock();
     try {
       if (socket == null) {
         condition.await();
@@ -200,7 +200,7 @@ class SendReceiveThread implements Runnable {
     } catch (InterruptedException ie) {
       ie.printStackTrace();
     } finally {
-      areladyStartedLock.unlock();
+      alreadyStartedLock.unlock();
     }
     ZMsg msg = new ZMsg();
     msg.add(message.toByteString().toByteArray());
