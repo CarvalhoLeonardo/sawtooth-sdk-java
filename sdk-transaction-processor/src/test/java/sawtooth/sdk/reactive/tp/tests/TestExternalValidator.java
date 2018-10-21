@@ -1,5 +1,6 @@
 package sawtooth.sdk.reactive.tp.tests;
 
+import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
@@ -8,6 +9,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +24,9 @@ import sawtooth.sdk.protobuf.ClientBatchStatusResponse;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
+import sawtooth.sdk.reactive.tp.fake.FakeValidator;
 import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
+import sawtooth.sdk.reactive.tp.messaging.ReactorStream;
 import sawtooth.sdk.reactive.tp.processor.DefaultTransactionProcessorImpl;
 
 @Test
@@ -81,12 +86,12 @@ public class TestExternalValidator extends BaseTest {
   }
 
   private static Properties configData = new Properties();
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestExternalValidator.class);
   /**
    * The TH under test.
    */
   private static final SimpleTestTransactionHandler testTH;
+
   static {
     SimpleTestTransactionHandler tmp = null;
     try {
@@ -98,7 +103,9 @@ public class TestExternalValidator extends BaseTest {
     tmp = new SimpleTestTransactionHandler();
     testTH = tmp;
   }
-
+  private FakeValidator fVal = null;
+  private ReactorStream reactStream = null;
+  private ExecutorService tpe;
   private TestTransactionProcessor tpUnderTest;
 
 
@@ -108,10 +115,35 @@ public class TestExternalValidator extends BaseTest {
     tpUnderTest = new TestTransactionProcessor(configData.getProperty("validator_add"),
         configData.getProperty("tprocessor_id"),
         Integer.parseInt(configData.getProperty("parallelism")));
+    if ((configData.getProperty("really_external").isEmpty())
+        || (configData.getProperty("really_external").equalsIgnoreCase("false"))) {
+      LOGGER.info("Not an external Sawtooth Instance, let's start one fake validator...");
+      fVal = new FakeValidator(testTH.getMessageFactory(), configData.getProperty("validator_add"));
+      reactStream = new ReactorStream(configData.getProperty("validator_add"), 2);
+      tpe = Executors.newWorkStealingPool(4);
+      Future<?> startVal = tpe.submit(() -> {
+        fVal.run();
+      });
+      try {
+        startVal.get();
+        LOGGER.debug("Preparing to start Stream...");
+        Future<?> startStream = tpe.submit(() -> {
+          reactStream.run();
+        });
+        startStream.get();
+        LOGGER.debug("Stream Started.");
+      } catch (InterruptedException | ExecutionException e) {
+        e.printStackTrace();
+        fail("Fake validator didn't go up !", e);
+      }
+      LOGGER.info("Fake validator started.");
+    }
+
     try {
       tpUnderTest.init();
     } catch (InterruptedException | ExecutionException e) {
       e.printStackTrace();
+      fail("Test Transaction Processor didn't go up !", e);
     }
     tpUnderTest.addHandler(testTH);
     Assert.assertFalse(tpUnderTest.listRegisteredHandlers().isEmpty());
@@ -157,15 +189,12 @@ public class TestExternalValidator extends BaseTest {
     List<String> lameAddress = Arrays
         .asList(testTH.generateAddress(testTH.getNameSpaces().iterator().next(), "aaaaaaaaaaaa"));
     String correlationID = UUID.randomUUID().toString();
-
-
     Message lameProcessRequest = testTH.getMessageFactory().getProcessRequest(
         FormattingUtils.bytesToHex(testTH.getExternalContextID()), lameData, lameAddress,
         lameAddress, null, testTH.getMessageFactory().getPubliceyString());
 
     Batch lameBatchRequest =
         testTH.getMessageFactory().createBatch(Arrays.asList(lameProcessRequest), true);
-
     /*
      * Yeah, you need to send a BatchList, NOT a Batch here...
      */

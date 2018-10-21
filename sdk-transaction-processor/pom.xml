@@ -14,6 +14,7 @@
 		<sw_validator_url>tcp://127.0.0.1:4004</sw_validator_url>
 		<processor_id>mytesttp</processor_id>
 		<processor_parallelism>2</processor_parallelism>
+		<is_remote_sawtooth>false</is_remote_sawtooth>
 	</properties>
 	<profiles>
 		<profile>

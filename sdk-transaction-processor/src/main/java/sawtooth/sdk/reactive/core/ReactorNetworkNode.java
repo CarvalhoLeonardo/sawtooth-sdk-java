@@ -165,8 +165,6 @@ public class ReactorNetworkNode implements Runnable {
     backEndSocket.setIdentity((NODE_IDENTIFICATION + "_Backend").getBytes());
 
     frontendSocket = context.createSocket(ZMQ.ROUTER);
-    // To user ROUTER, we need or to implement https://github.com/zeromq/pyzmq/issues/974 or know
-    // the ID of the server socket...
     frontendSocket.setLinger(0);
     frontendSocket.setImmediate(false);
     frontendSocket.setProbeRouter(true);
@@ -180,7 +178,7 @@ public class ReactorNetworkNode implements Runnable {
       frontendSocket
           .setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
       if (frontendSocket.bind(mqMainAddress)) {
-        LOGGER.debug(NODE_IDENTIFICATION + " Server : Bound to " + mqMainAddress);
+        LOGGER.debug("{} Server : Bound to {}.", NODE_IDENTIFICATION, mqMainAddress);
       }
     } else {
       LOGGER.debug("{} : Client mode to {}.", NODE_IDENTIFICATION, mqMainAddress);
@@ -191,7 +189,6 @@ public class ReactorNetworkNode implements Runnable {
         remoteRouterID = ack.getFirst().getData();
         LOGGER.debug("{} - Client : HEXA to {} -- {}", NODE_IDENTIFICATION,
             FormattingUtils.bytesToHex(remoteRouterID), remoteRouterID);
-        LOGGER.debug(NODE_IDENTIFICATION + " Client : Connected to " + remoteRouterID);
       }
     }
 

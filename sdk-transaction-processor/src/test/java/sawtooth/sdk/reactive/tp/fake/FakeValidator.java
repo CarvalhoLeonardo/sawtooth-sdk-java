@@ -4,43 +4,33 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.google.protobuf.InvalidProtocolBufferException;
+import sawtooth.sdk.protobuf.ClientBatchSubmitResponse;
 import sawtooth.sdk.protobuf.Message;
+import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.protobuf.TpRegisterRequest;
 import sawtooth.sdk.protobuf.TpRegisterResponse;
 import sawtooth.sdk.reactive.common.messaging.MessageFactory;
 import sawtooth.sdk.reactive.core.ReactorNetworkNode;
 
 /**
- * 
+ *
  * @author Leonardo T. de Carvalho
- * 
+ *
  *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
- * 
+ *
  *         This class intends to mimic a validator, construcing messages for various tests to any
  *         TPs connecting to it.
- * 
+ *
  *         More than a Mock, much less than the real deal.
  *
  */
 public class FakeValidator implements Runnable {
   private final static Logger LOGGER = LoggerFactory.getLogger(FakeValidator.class);
-  
+
   MessageFactory internalMF;
   ReactorNetworkNode internalNode;
-  
-  public FakeValidator(MessageFactory source, String mqAddress) {
-    LOGGER.debug("Registering Message Factory of family " + source.getFamilyName());
-    this.internalMF = source;
-    internalNode = new ReactorNetworkNode(mqAddress, 4, "fakeValidator", true); 
-  }
 
-  @Override
-  public void run() {
-    internalNode.setWorkingFunction(transformationFunction);
-    internalNode.run();
-  }
-  
   private Function<Message, Message> transformationFunction = new Function<Message, Message>() {
     @Override
     public Message apply(Message m) {
@@ -62,19 +52,47 @@ public class FakeValidator implements Runnable {
           m = internalMF.getRegisterResponse(TpRegisterResponse.Status.OK_VALUE,
               m.getCorrelationId());
           break;
+        case Message.MessageType.CLIENT_BATCH_SUBMIT_REQUEST_VALUE:
+          LOGGER.debug("--------------------- Received CLIENT_BATCH_SUBMIT_REQUEST");
+          m = getFakeProcessRequestResponse(m.getCorrelationId());
+          break;
         default:
+          LOGGER.warn("We got a unregistered mesage type : {}", m.getMessageType());
       }
       LOGGER.debug("answering with " + m.toString());
       return m;
-    } 
+    }
   };
-  
+
+
+  public FakeValidator(MessageFactory source, String mqAddress) {
+    LOGGER.debug("Registering Message Factory of family " + source.getFamilyName());
+    this.internalMF = source;
+    internalNode = new ReactorNetworkNode(mqAddress, 4, "fakeValidator", true);
+  }
+
+  private Message getFakeProcessRequestResponse(String correlationId) {
+    Message newMessage = Message.newBuilder()
+        .setContent(ClientBatchSubmitResponse.newBuilder()
+            .setStatus(ClientBatchSubmitResponse.Status.OK).build().toByteString())
+        .setCorrelationId(correlationId).setMessageType(MessageType.CLIENT_BATCH_SUBMIT_RESPONSE)
+        .build();
+
+    return newMessage;
+  }
+
   private void receiveRegisterRequest(TpRegisterRequest req) throws InvalidProtocolBufferException {
     LOGGER.debug("Registering Message Factory of family " + req.getFamily());
     if (!this.internalMF.getFamilyName().equalsIgnoreCase(req.getFamily())
         && this.internalMF.getFamilyVersion().equalsIgnoreCase(req.getVersion())) {
       throw new InvalidProtocolBufferException("Wrong TP version received !");
     }
+  }
+
+  @Override
+  public void run() {
+    internalNode.setWorkingFunction(transformationFunction);
+    internalNode.run();
   }
 
 }
