@@ -2,12 +2,12 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-        <parent>
-                <groupId>sawtooth-sdk</groupId>
-                <artifactId>parent</artifactId>
-                <version>0.1.2-SNAPSHOT</version>
-                <relativePath>../pom.xml</relativePath>
-        </parent>
+	<parent>
+		<groupId>sawtooth</groupId>
+		<artifactId>sdk</artifactId>
+		<version>1.0-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
 	<artifactId>sdk-rest-client</artifactId>
 	<name>Sawtooth REST Client SDK</name>
 
@@ -23,13 +23,13 @@
 				<activeByDefault>true</activeByDefault>
 			</activation>
 			<dependencies>
-			
+
 				<dependency>
-					<groupId>sawtooth-sdk</groupId>
+					<groupId>sawtooth</groupId>
 					<artifactId>sdk-common</artifactId>
 					<version>${project.version}</version>
 				</dependency>
-				
+
 				<dependency>
 					<groupId>com.sun.activation</groupId>
 					<artifactId>javax.activation</artifactId>
@@ -50,7 +50,7 @@
 					<artifactId>jaxb-runtime</artifactId>
 					<scope>runtime</scope>
 				</dependency>
-				
+
 			</dependencies>
 		</profile>
 		<profile>
@@ -197,19 +197,17 @@
 							<generatorName>java</generatorName>
 							<addCompileSourceRoot>true</addCompileSourceRoot>
 							<output>target/generated-sources/swagger</output>
-							<modelPackage>sawtooth.sdk.reactive.rest.model</modelPackage>
+							<modelPackage>sawtooth.sdk.restclient.model</modelPackage>
 							<modelNamePrefix>REST</modelNamePrefix>
 							<generateApis>false</generateApis>
 							<generateModelDocumentation>true</generateModelDocumentation>
 							<generateSupportingFiles>false</generateSupportingFiles>
 							<token><![CDATA[
 							
-								This plugin is used to generate more Jersey friendly artifacts to deal with the endpoints.
-							
-							A good help in understanding this parameters can be get from 
-							
-							java -jar ${m2_repo}/org/openapitools/openapi-generator-cli/3.0.3/openapi-generator-cli-3.0.3.jar 
-								config-help -l java 
+						    This plugin is used to generate more Jersey friendly artifacts to deal with the endpoints.
+							A good help in understanding this parameters can be get from
+							 
+							java -jar ${m2_repo}/org/openapitools/openapi-generator-cli/3.0.3/openapi-generator-cli-3.0.3.jar config-help -l java 
 
 							]]></token>
 							<configOptions>
