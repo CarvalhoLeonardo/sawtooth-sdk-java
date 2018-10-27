@@ -1,6 +1,6 @@
 syntax = "proto3";
 option java_multiple_files = true;
-option java_package = "sawtooth.sdk.reactive.protobuf";
+option java_package = "sawtooth.sdk.protobuf";
 
 import "client_state.proto";
 
