@@ -16,12 +16,31 @@
 	<artifactId>intkey_java</artifactId>
 	<name>Sawtooth Java Example - Integer Key Transaction Processor</name>
 	<version>0.1.2-SNAPSHOT</version>
-	
+
 	<properties>
 		<apachelog-version>2.11.0</apachelog-version>
+		<LOG_LEVEL>info</LOG_LEVEL>
 	</properties>
 
 	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources/</directory>
+				<includes>
+					<include>*.properties</include>
+				</includes>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+		<testResources>
+			<testResource>
+				<directory>src/test/resources/</directory>
+				<includes>
+					<include>*.properties</include>
+				</includes>
+				<filtering>true</filtering>
+			</testResource>
+		</testResources>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -83,7 +102,7 @@
 			<artifactId>sdk-transaction-processor</artifactId>
 			<version>0.1.2-SNAPSHOT</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-slf4j-impl</artifactId>

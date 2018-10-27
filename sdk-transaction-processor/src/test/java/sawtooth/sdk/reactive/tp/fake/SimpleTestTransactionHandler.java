@@ -46,7 +46,6 @@ public class SimpleTestTransactionHandler implements TransactionHandler, Sawtoot
     try {
       tmpMF = new MessageFactory("coretests", "0.0", null, null, "coretest");
     } catch (NoSuchAlgorithmException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     }
     TEST_MESSAGE_FACTORY = tmpMF;

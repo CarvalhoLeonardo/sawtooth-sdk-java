@@ -215,11 +215,7 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
       LOGGER.debug("Register Response received : {}.",
           tpRegRespBuilder.mergeFrom(answer.getContent()).build());
 
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    } catch (ExecutionException e) {
-      e.printStackTrace();
-    } catch (InvalidProtocolBufferException e) {
+    } catch (InterruptedException | ExecutionException | InvalidProtocolBufferException e) {
       e.printStackTrace();
     }
     handler.setContextId(getExternalContextID());

@@ -1,7 +1,7 @@
 //@formatter:off
 /*-----------------------------------------------------------------------------
  Copyright 2016, 2017 Intel Corporation
- 
+
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -19,6 +19,7 @@
 package sawtooth.sdk.reactive.tp.processor;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -48,87 +49,18 @@ import sawtooth.sdk.reactive.tp.messaging.MessagesStream;
  */
 public class DefaultSawtoothStateImpl implements SawtoothState {
 
-  private MessagesStream stream;
+  private final static Logger LOGGER = LoggerFactory.getLogger(DefaultSawtoothStateImpl.class);
   private static final int TIME_OUT = 2;
   MessageFactory mesgFact;
-  private final static Logger LOGGER = LoggerFactory.getLogger(DefaultSawtoothStateImpl.class);
+  private MessagesStream stream;
 
   public DefaultSawtoothStateImpl(MessagesStream stream) {
     this.stream = stream;
   }
 
-  /**
-   * Make a Get request on a specific context specified by contextId.
-   *
-   * @param addresses a collection of address Strings
-   * @return Map where the keys are addresses, values Bytestring
-   * @throws InternalError something went wrong processing transaction
-   * @throws InvalidProtocolBufferException
-   */
-  public Map<String, ByteString> getState(String contextID, List<String> addresses)
-      throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
-
-    Message getResponse;
-    try {
-      getResponse = getRemoteMessageResponse(mesgFact.getStateRequest(addresses));
-    } catch (Exception iee) {
-      throw new InternalError(iee.toString());
-    }
-
-    Map<String, ByteString> results = new HashMap<String, ByteString>();
-    if (getResponse != null) {
-      if (!getResponse.getMessageType().equals(MessageType.TP_STATE_GET_RESPONSE)) {
-        LOGGER.info("Not a response , got " + getResponse.getMessageType().name() + " instead.");
-      }
-      TpStateGetResponse responsePayload = TpStateGetResponse.parseFrom(getResponse.getContent());
-      if (responsePayload.getStatus() == TpStateGetResponse.Status.AUTHORIZATION_ERROR) {
-        throw new InvalidTransactionException(
-            "Tried to get unauthorized address " + addresses.toString());
-      }
-      for (TpStateEntry entry : responsePayload.getEntriesList()) {
-        results.put(entry.getAddress(), entry.getData());
-      }
-    }
-    if (results.isEmpty()) {
-      throw new InternalError(
-          "State Error, no result found for get request:" + addresses.toString());
-    }
-
-    return results;
-  }
-
-  /**
-   * Make a Set request on a specific context specified by contextId.
-   *
-   * @param addressValuePairs A collection of Map.Entry's
-   * @return addressesThatWereSet, A collection of address Strings that were set
-   * @throws InternalError something went wrong processing transaction
-   */
-  public Collection<String> setState(String contextID, List<Map.Entry<String, ByteString>> addressValuePairs)
-      throws InternalError, InvalidTransactionException {
-
-    Message setResponse;
-    try {
-      setResponse =
-          getRemoteMessageResponse(mesgFact.getSetStateRequest(contextID, addressValuePairs));
-    } catch (Exception iee) {
-      throw new InternalError(iee.toString());
-    }
-
-    List<String> addressesThatWereSet = new ArrayList<String>();
-    if (setResponse != null) {
-      try {
-        addressesThatWereSet = mesgFact.parseStateSetResponse(setResponse);
-      } catch (InvalidProtocolBufferException e) {
-        e.printStackTrace();
-      }
-    }
-
-    return addressesThatWereSet;
-  }
-
   @Override
-  public ByteString AddEvent(String contextID, String eventType, Map<String, String> attributes, ByteString extraData)
+  public ByteString AddEvent(String contextID, String eventType, Map<String, String> attributes,
+      ByteString extraData)
       throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
 
     final Event.Attribute.Builder attBuilder = Event.Attribute.newBuilder();
@@ -185,6 +117,81 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
     Future<Message> future = stream.receive(mesg.getCorrelationId());
 
     return future.get(TIME_OUT, TimeUnit.SECONDS);
+  }
+
+  /**
+   * Make a Get request on a specific context specified by contextId.
+   *
+   * @param addresses a collection of address Strings
+   * @return Map where the keys are addresses, values Bytestring
+   * @throws InternalError something went wrong processing transaction
+   * @throws InvalidProtocolBufferException
+   */
+  @Override
+  public Map<String, ByteString> getState(String contextID, List<String> addresses)
+      throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
+
+    Message getResponse;
+    try {
+      getResponse = getRemoteMessageResponse(mesgFact.getStateRequest(addresses));
+    } catch (Exception iee) {
+      throw new InternalError(iee.toString());
+    }
+
+    Map<String, ByteString> results = new HashMap<String, ByteString>();
+
+    if (getResponse != null) {
+      if (!getResponse.getMessageType().equals(MessageType.TP_STATE_GET_RESPONSE)) {
+        LOGGER.info("Not a response , got " + getResponse.getMessageType().name() + " instead.");
+      }
+      TpStateGetResponse responsePayload = TpStateGetResponse.parseFrom(getResponse.getContent());
+      if (responsePayload.getStatus() == TpStateGetResponse.Status.AUTHORIZATION_ERROR) {
+        throw new InvalidTransactionException(
+            "Tried to get unauthorized address " + addresses.toString());
+      }
+      for (TpStateEntry entry : responsePayload.getEntriesList()) {
+        results.put(entry.getAddress(), entry.getData());
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Make a Set request on a specific context specified by contextId.
+   *
+   * @param addressValuePairs A collection of Map.Entry's
+   * @return addressesThatWereSet, A collection of address Strings that were set
+   * @throws InternalError something went wrong processing transaction
+   */
+  @Override
+  public Collection<String> setState(String contextID,
+      List<Map.Entry<String, ByteString>> addressValuePairs)
+      throws InternalError, InvalidTransactionException {
+
+    Message setResponse;
+    try {
+      setResponse =
+          getRemoteMessageResponse(mesgFact.getSetStateRequest(contextID, addressValuePairs));
+    } catch (Exception iee) {
+      throw new InternalError(iee.toString());
+    }
+
+    List<String> addressesThatWereSet = new ArrayList<String>();
+    if (setResponse != null) {
+      try {
+        addressesThatWereSet = mesgFact.parseStateSetResponse(setResponse);
+      } catch (InvalidProtocolBufferException e) {
+        e.printStackTrace();
+      }
+    } else {
+      LOGGER.error("Response for Set State was null.");
+      LOGGER.error("ContextID {}, map {}.", contextID,
+          Arrays.deepToString(addressValuePairs.toArray()));
+      throw new InternalError("Response for Set State null.");
+    }
+
+    return addressesThatWereSet;
   }
 
 
