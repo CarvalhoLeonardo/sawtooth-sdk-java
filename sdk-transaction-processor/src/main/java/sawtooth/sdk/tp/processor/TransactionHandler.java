@@ -8,6 +8,7 @@ import sawtooth.sdk.protobuf.TpProcessRequest;
 import sawtooth.sdk.protobuf.TpProcessResponse;
 
 public interface TransactionHandler {
+  static final int MESSAGE_SIZE_DELIMITER = 64;
 
   /**
    * Apply the Process Request on the State
@@ -24,6 +25,8 @@ public interface TransactionHandler {
   public Collection<String> getNameSpaces();
 
   public String getVersion();
+
+  public void setContextId(byte[] externalContextID);
 
   /**
    * Set the message factory to use in this Handler. It will manage the semantics of the generated

@@ -3,6 +3,7 @@ package sawtooth.sdk.tp.messaging;
 import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+
 import reactor.core.publisher.Flux;
 import sawtooth.sdk.protobuf.Message;
 
@@ -52,7 +53,6 @@ public abstract class MessagesStream {
    */
   public abstract Future<Message> send(Message payload);
 
-
   /**
    * Send a message without getting a future back. Useful for sending a response message to, for
    * example, a transaction
@@ -61,6 +61,5 @@ public abstract class MessagesStream {
    * @param payload - the Message the server is expecting
    */
   public abstract void sendBack(String correlationId, Message payload);
-
 
 }

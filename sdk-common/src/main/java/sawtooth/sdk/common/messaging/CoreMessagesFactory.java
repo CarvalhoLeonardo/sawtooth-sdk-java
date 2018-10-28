@@ -11,12 +11,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.UnknownFieldSet;
 import com.google.protobuf.UnknownFieldSet.Field;
+
 import sawtooth.sdk.common.utils.FormattingUtils;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
@@ -30,21 +33,18 @@ import sawtooth.sdk.protobuf.TpStateGetResponse;
 import sawtooth.sdk.protobuf.TpStateSetRequest;
 import sawtooth.sdk.protobuf.TpStateSetResponse;
 
-
-
 /**
  *
  * @author Leonardo T. de Carvalho
  *
- *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
- *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
- *         Some of the messages that circulate are basic to Sawtooth, not bound to any Transaction
- *         Processor implementation.
+ * Some of the messages that circulate are basic to Sawtooth, not bound to any Transaction Processor
+ * implementation.
  *
  */
 public class CoreMessagesFactory {
-
 
   /**
    * Our ubiquitous Logger.
@@ -81,8 +81,8 @@ public class CoreMessagesFactory {
   }
 
   private TpStateDeleteRequest createTpStateDeleteRequest(List<String> addresses) {
-    Optional<String> wrongAddress =
-        addresses.stream().filter(str -> !isValidMerkleAddress(str)).findFirst();
+    Optional<String> wrongAddress = addresses.stream().filter(str -> !isValidMerkleAddress(str))
+        .findFirst();
     if (wrongAddress.isPresent()) {
       LOGGER.error("Invalid Address " + wrongAddress.get());
       return null;
@@ -95,8 +95,8 @@ public class CoreMessagesFactory {
   }
 
   private TpStateDeleteResponse createTpStateDeleteResponse(List<String> addresses) {
-    Optional<String> wrongAddress =
-        addresses.stream().filter(str -> !isValidMerkleAddress(str)).findFirst();
+    Optional<String> wrongAddress = addresses.stream().filter(str -> !isValidMerkleAddress(str))
+        .findFirst();
     if (wrongAddress.isPresent()) {
       LOGGER.error("Invalid Address " + wrongAddress.get());
       return null;
@@ -109,8 +109,8 @@ public class CoreMessagesFactory {
   }
 
   private TpStateGetRequest createTpStateGetRequest(List<String> addresses) {
-    Optional<String> wrongAddress =
-        addresses.stream().filter(str -> !isValidMerkleAddress(str)).findFirst();
+    Optional<String> wrongAddress = addresses.stream().filter(str -> !isValidMerkleAddress(str))
+        .findFirst();
     if (wrongAddress.isPresent()) {
       LOGGER.error("Invalid Address " + wrongAddress.get());
       return null;
@@ -123,8 +123,8 @@ public class CoreMessagesFactory {
   }
 
   private TpStateGetResponse createTpStateGetResponse(List<TpStateEntry> entries) {
-    Optional<TpStateEntry> wrongAddressEntry =
-        entries.stream().filter(str -> !isValidMerkleAddress(str.getAddress())).findFirst();
+    Optional<TpStateEntry> wrongAddressEntry = entries.stream()
+        .filter(str -> !isValidMerkleAddress(str.getAddress())).findFirst();
     if (wrongAddressEntry.isPresent()) {
       LOGGER.error("Invalid Address for TpStateEntry : " + wrongAddressEntry.get().getAddress());
       return null;
@@ -136,19 +136,18 @@ public class CoreMessagesFactory {
 
   }
 
-
   private TpStateSetRequest createTpStateSetRequest(String contextId,
       List<java.util.Map.Entry<String, ByteString>> addressDataMap) {
 
     ArrayList<TpStateEntry> entryArrayList = new ArrayList<TpStateEntry>();
     for (Map.Entry<String, ByteString> entry : addressDataMap) {
-      TpStateEntry ourTpStateEntry =
-          TpStateEntry.newBuilder().setAddress(entry.getKey()).setData(entry.getValue()).build();
+      TpStateEntry ourTpStateEntry = TpStateEntry.newBuilder().setAddress(entry.getKey())
+          .setData(entry.getValue()).build();
       entryArrayList.add(ourTpStateEntry);
     }
 
-    Optional<TpStateEntry> wrongAddress =
-        entryArrayList.stream().filter(str -> !isValidMerkleAddress(str.getAddress())).findFirst();
+    Optional<TpStateEntry> wrongAddress = entryArrayList.stream()
+        .filter(str -> !isValidMerkleAddress(str.getAddress())).findFirst();
     if (wrongAddress.isPresent()) {
       LOGGER.error("Invalid Address " + wrongAddress.get().getAddress());
       return null;

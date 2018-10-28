@@ -15,7 +15,7 @@
 	<groupId>sawtooth-sdk.examples</groupId>
 	<artifactId>intkey_java</artifactId>
 	<name>Sawtooth Java Example - Integer Key Transaction Processor</name>
-	<version>0.1.2-SNAPSHOT</version>
+	<version>1.0-SNAPSHOT</version>
 
 	<properties>
 		<apachelog-version>2.11.0</apachelog-version>
@@ -98,9 +98,9 @@
 	</build>
 	<dependencies>
 		<dependency>
-			<groupId>sawtooth-sdk</groupId>
+			<groupId>sawtooth</groupId>
 			<artifactId>sdk-transaction-processor</artifactId>
-			<version>0.1.2-SNAPSHOT</version>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>

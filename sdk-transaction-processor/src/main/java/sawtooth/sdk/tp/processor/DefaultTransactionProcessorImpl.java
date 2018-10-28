@@ -1,18 +1,22 @@
 package sawtooth.sdk.tp.processor;
 
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -32,7 +36,6 @@ import sawtooth.sdk.protobuf.TransactionHeader;
 import sawtooth.sdk.tp.messaging.ReactorStream;
 
 public class DefaultTransactionProcessorImpl implements TransactionProcessor {
-
   private final class ReactiveStateImpl implements SawtoothState {
 
     @Override
@@ -75,13 +78,10 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
   }
 
   private final static String KEY_FORMAT = "%s | %s";
-
   private final static Logger LOGGER = LoggerFactory
       .getLogger(DefaultTransactionProcessorImpl.class);
-
   private final String address;
-
-  CoreMessagesFactory coreMessageFact;
+  protected CoreMessagesFactory coreMessageFact;
 
   private Function<Message, Message> coreMessagesFunction = new Function<Message, Message>() {
     @Override
@@ -116,7 +116,8 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
               LOGGER.debug("Sending to {} ...",
                   String.format(KEY_FORMAT, header.getFamilyName(), header.getFamilyVersion()));
             }
-            // We don't consume or process the message to permit further verification down the line.
+            // We don't consume or process the message to permit further verification down the
+            // line.
             messagesRouter
                 .get(String.format(KEY_FORMAT, header.getFamilyName(), header.getFamilyVersion()))
                 .executeProcessRequest(theRequest, internalState).thenAccept(rs -> {
@@ -164,17 +165,18 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
       return result;
     }
   };
-
   private final Deque<TransactionHandler> currentHandlers = new ConcurrentLinkedDeque<TransactionHandler>();
 
   protected ReactiveStateImpl internalState = new ReactiveStateImpl();
 
   private final Map<String, TransactionHandler> messagesRouter = new ConcurrentHashMap<String, TransactionHandler>();
-  private ScheduledExecutorService periodicTasks = Executors.newScheduledThreadPool(1);
+
   private int pFactor = 4;
   private final String processorID;
-  ReactorStream reactStream;
+  protected ReactorStream reactStream;
+
   Thread streamTH;
+
   ExecutorService tasksExecutor;
 
   TpProcessRequest.Builder tpProcessRequestBuilder = TpProcessRequest.newBuilder();
@@ -211,14 +213,10 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
       LOGGER.debug("Register Response received : {}.",
           tpRegRespBuilder.mergeFrom(answer.getContent()).build());
 
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    } catch (ExecutionException e) {
-      e.printStackTrace();
-    } catch (InvalidProtocolBufferException e) {
+    } catch (InterruptedException | ExecutionException | InvalidProtocolBufferException e) {
       e.printStackTrace();
     }
-
+    handler.setContextId(getExternalContextID());
     currentHandlers.add(handler);
 
     messagesRouter.put(
@@ -233,6 +231,11 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
   }
 
   @Override
+  public byte[] getExternalContextID() {
+    return reactStream.getExternalContext();
+  }
+
+  @Override
   public String getTransactionProcessorId() {
     return processorID;
   }
@@ -243,15 +246,19 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
     reactStream.getStarted().get();
     LOGGER.debug("Message Stream Started.");
     reactStream.setTransformationFunction(coreMessagesFunction);
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      LOGGER.debug("Signaled to stop all.");
+      this.shutdown();
+    }));
     /*
      * periodicTasks.schedule(new Callable<Message>() { Message pingResp;
-     * 
+     *
      * @Override public Message call() { tasksExecutor.execute(() -> { Message pingReq; try {
      * pingReq = coreMessageFact.getPingRequest(null); if (LOGGER.isDebugEnabled()) {
      * LOGGER.debug("Pinging the Validator with {} ...", pingReq); } reactStream.send(pingReq);
      * pingResp = reactStream.receive(pingReq.getCorrelationId()).get();
      * LOGGER.info("Pinged back the Validator with {} ...", pingResp);
-     * 
+     *
      * } catch (InvalidProtocolBufferException e) { e.printStackTrace(); } catch
      * (InterruptedException e) { e.printStackTrace(); } catch (ExecutionException e) {
      * e.printStackTrace(); } }); return pingResp; } }, 10, TimeUnit.SECONDS);
@@ -266,5 +273,50 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
 
   @Override
   public void shutdown() {
+    LOGGER.debug("Shutting down...");
+    List<Message> goobByeLetters = new ArrayList<>();
+    List<CompletableFuture<Message>> allToReceive = new ArrayList<>();
+
+    currentHandlers.forEach(eh -> {
+      LOGGER.debug("Getting unregister request for TH of family {}, version {}",
+          eh.transactionFamilyName(), eh.getVersion());
+      goobByeLetters.add(eh.getMessageFactory().getUnregisterRequest());
+    });
+
+    goobByeLetters.stream().map(em -> {
+      reactStream.sendBack(em.getCorrelationId(), em);
+      try {
+        CompletableFuture<Message> awaitingOne;
+
+        awaitingOne = (CompletableFuture<Message>) reactStream.receive(em.getCorrelationId(),
+            Duration.ofSeconds(1L));
+        awaitingOne.whenComplete((rs, ex) -> {
+          if (ex != null) {
+            LOGGER.debug("::==========>> FAILURE {}.", ex.getMessage());
+          } else {
+            LOGGER.debug("Successfully unregistered : CID {}.", rs.getCorrelationId());
+          }
+        });
+        allToReceive.add(awaitingOne);
+      } catch (TimeoutException e) {
+        e.printStackTrace();
+      }
+      return true;
+    }).allMatch(al -> true);
+
+    CompletableFuture<?>[] stupidRules = new CompletableFuture<?>[allToReceive.size()];
+    allToReceive.toArray(stupidRules);
+    CompletableFuture<Void> result = CompletableFuture.allOf(stupidRules);
+    result.join();
+    try {
+      result.get(10, TimeUnit.SECONDS);
+      reactStream.close();
+      streamTH.join();
+
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      e.printStackTrace();
+    }
+
   }
+
 }

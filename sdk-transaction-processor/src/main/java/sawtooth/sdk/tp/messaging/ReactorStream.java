@@ -6,8 +6,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import reactor.core.publisher.Flux;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.tp.core.ReactorNetworkNode;
@@ -20,7 +22,6 @@ public class ReactorStream extends MessagesStream implements Runnable {
   private int parallelismFactor = 4;
   CompletableFuture<Boolean> started = new CompletableFuture<Boolean>();
   private String url = "";
-
 
   public ReactorStream(String url, int parallelismFactor) {
     super();

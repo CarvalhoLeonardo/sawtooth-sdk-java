@@ -1,6 +1,7 @@
-package sawtooth.sdk.reactive.tp.tests;
+package sawtooth.sdk.tp.tests;
 
 import static org.testng.Assert.fail;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
@@ -12,22 +13,25 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import sawtooth.sdk.common.utils.FormattingUtils;
 import sawtooth.sdk.protobuf.Batch;
 import sawtooth.sdk.protobuf.BatchList;
 import sawtooth.sdk.protobuf.ClientBatchStatusResponse;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
-import sawtooth.sdk.reactive.common.utils.FormattingUtils;
-import sawtooth.sdk.reactive.tp.fake.FakeValidator;
-import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
-import sawtooth.sdk.reactive.tp.messaging.ReactorStream;
-import sawtooth.sdk.reactive.tp.processor.DefaultTransactionProcessorImpl;
+import sawtooth.sdk.tp.fake.FakeValidator;
+import sawtooth.sdk.tp.fake.SimpleTestTransactionHandler;
+import sawtooth.sdk.tp.messaging.ReactorStream;
+import sawtooth.sdk.tp.processor.DefaultTransactionProcessorImpl;
 
 @Test
 public class TestExternalValidator extends BaseTest {
@@ -107,8 +111,6 @@ public class TestExternalValidator extends BaseTest {
   private ReactorStream reactStream = null;
   private ExecutorService tpe;
   private TestTransactionProcessor tpUnderTest;
-
-
 
   @BeforeClass
   public void setUp() {
@@ -193,24 +195,24 @@ public class TestExternalValidator extends BaseTest {
         FormattingUtils.bytesToHex(testTH.getExternalContextID()), lameData, lameAddress,
         lameAddress, null, testTH.getMessageFactory().getPubliceyString());
 
-    Batch lameBatchRequest =
-        testTH.getMessageFactory().createBatch(Arrays.asList(lameProcessRequest), true);
+    Batch lameBatchRequest = testTH.getMessageFactory()
+        .createBatch(Arrays.asList(lameProcessRequest), true);
     /*
      * Yeah, you need to send a BatchList, NOT a Batch here...
      */
     BatchList.Builder rbl = BatchList.newBuilder();
     rbl.addBatches(lameBatchRequest);
 
-    Message theReq =
-        Message.newBuilder().setContent(rbl.build().toByteString()).setCorrelationId(correlationID)
-            .setMessageType(MessageType.CLIENT_BATCH_SUBMIT_REQUEST).build();
+    Message theReq = Message.newBuilder().setContent(rbl.build().toByteString())
+        .setCorrelationId(correlationID).setMessageType(MessageType.CLIENT_BATCH_SUBMIT_REQUEST)
+        .build();
 
     Message answer = tpUnderTest.send(theReq).get();
 
     Assert.assertNotNull(answer);
 
-    ClientBatchStatusResponse responsePayload =
-        ClientBatchStatusResponse.newBuilder().mergeFrom(answer.getContent()).build();
+    ClientBatchStatusResponse responsePayload = ClientBatchStatusResponse.newBuilder()
+        .mergeFrom(answer.getContent()).build();
 
     LOGGER.debug("Got the response {} with the payload {}.", answer, responsePayload);
 

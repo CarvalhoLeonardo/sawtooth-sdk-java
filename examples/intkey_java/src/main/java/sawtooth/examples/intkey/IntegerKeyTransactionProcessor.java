@@ -14,8 +14,8 @@
 package sawtooth.examples.intkey;
 
 import java.util.concurrent.ExecutionException;
-import sawtooth.sdk.reactive.tp.processor.DefaultTransactionProcessorImpl;
-import sawtooth.sdk.reactive.tp.processor.TransactionProcessor;
+import sawtooth.sdk.tp.processor.DefaultTransactionProcessorImpl;
+import sawtooth.sdk.tp.processor.TransactionProcessor;
 
 public class IntegerKeyTransactionProcessor {
 
