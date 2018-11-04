@@ -149,9 +149,9 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
         case TP_UNREGISTER_REQUEST:
         case TP_UNREGISTER_RESPONSE:
         case UNRECOGNIZED:
-          if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Received Message Type {} with Correlation ID {} ...", mt.getMessageType(),
-                mt.getCorrelationId());
+          if (LOGGER.isWarnEnabled()) {
+            LOGGER.warn("Ignoring message type Type {} with Correlation ID {} ...",
+                mt.getMessageType(), mt.getCorrelationId());
           }
           break;
         default:

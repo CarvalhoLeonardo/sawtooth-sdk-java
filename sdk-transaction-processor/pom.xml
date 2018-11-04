@@ -15,6 +15,7 @@
 		<processor_id>mytesttp</processor_id>
 		<processor_parallelism>2</processor_parallelism>
 		<is_remote_sawtooth>false</is_remote_sawtooth>
+		<LOG_LEVEL>info</LOG_LEVEL>
 	</properties>
 	<profiles>
 		<profile>

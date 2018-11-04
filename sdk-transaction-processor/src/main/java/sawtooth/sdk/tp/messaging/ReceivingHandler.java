@@ -5,12 +5,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZFrame;
 import org.zeromq.ZLoop;
 import org.zeromq.ZMQ.PollItem;
 import org.zeromq.ZMsg;
+
 import reactor.core.publisher.EmitterProcessor;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
@@ -19,8 +21,8 @@ import sawtooth.sdk.protobuf.Message.MessageType;
  *
  * @author Leonardo T. de Carvalho
  *
- *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
- *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
  */
 public class ReceivingHandler implements ZLoop.IZLoopHandler {
@@ -99,8 +101,6 @@ public class ReceivingHandler implements ZLoop.IZLoopHandler {
         addressCorrelationMapping.put(sawtoothMessage.getCorrelationId(), idReceiver.getBytes());
       }
 
-
-
       LOGGER.debug(this.idReceiver + " Emitting sawtooth Message " + sawtoothMessage.toString());
       recEmitter.onNext(sawtoothMessage);
       LOGGER.debug(this.idReceiver + " emitted to " + recEmitter.name());
@@ -113,4 +113,3 @@ public class ReceivingHandler implements ZLoop.IZLoopHandler {
     return 0;
   }
 }
-
