@@ -2,6 +2,7 @@ package sawtooth.sdk.reactive.common.tests;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -15,6 +16,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
+
 import org.bitcoin.NativeSecp256k1;
 import org.bitcoin.NativeSecp256k1Util.AssertFailException;
 import org.bitcoinj.core.ECKey;
@@ -30,8 +32,10 @@ import org.spongycastle.util.encoders.Hex;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import sawtooth.sdk.protobuf.Batch;
 import sawtooth.sdk.protobuf.BatchHeader;
 import sawtooth.sdk.protobuf.Message;
@@ -45,8 +49,8 @@ import sawtooth.sdk.reactive.common.utils.FormattingUtils;
  *
  * @author Leonardo T. de Carvalho
  *
- *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
- *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
  */
 @Test
@@ -85,7 +89,6 @@ public class SigningTest {
     return output;
 
   }
-
 
   /**
    *
@@ -188,8 +191,8 @@ public class SigningTest {
     Sha256Hash dataHashed = Sha256Hash.of(dataToSign);
 
     byte[] compactSignature = SawtoothSigner.generateCompactSig(signerPrivateKey, dataToSign);
-    byte[] nativeSignature =
-        NativeSecp256k1.sign(dataHashed.getBytes(), signerPrivateKey.getPrivKeyBytes());
+    byte[] nativeSignature = NativeSecp256k1.sign(dataHashed.getBytes(),
+        signerPrivateKey.getPrivKeyBytes());
 
     byte[] decompactedSignature = decompressSignature(compactSignature);
 
@@ -209,7 +212,7 @@ public class SigningTest {
 
   /**
    *
-   * Tests the validity of the Batch created by the MessageFactory.
+   * Tests the validity of an non empty Batch created by the MessageFactory.
    *
    * @throws NoSuchAlgorithmException
    * @throws AssertFailException
@@ -217,9 +220,57 @@ public class SigningTest {
    */
   @Test(dependsOnMethods = { "testBasicSigning" })
   public void testBatchSigning() throws NoSuchAlgorithmException, AssertFailException, IOException {
+    byte[] publicKey = Utils.bigIntegerToBytes(new BigInteger(1, signerPrivateKey.getPubKey()), 32);
+    String publicKeyHex = FormattingUtils.bytesToHex(publicKey);
+
+    TransactionHeader.Builder thBuilder = TransactionHeader.newBuilder();
+    byte[] payload = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes();
+    thBuilder.setFamilyName("aaaaaaa");
+    thBuilder.setFamilyVersion("0.0");
+    thBuilder.setSignerPublicKey(FormattingUtils.bytesToHex(signerPrivateKey.getPubKey()));
+    thBuilder.setBatcherPublicKey(FormattingUtils.bytesToHex(signerPrivateKey.getPubKey()));
+    thBuilder.setNonce(String.valueOf(Calendar.getInstance().getTimeInMillis()));
+    MESSAGEDIGESTER_512.get().reset();
+    MESSAGEDIGESTER_512.get().update(payload, 0, payload.length);
+    thBuilder.setPayloadSha512(FormattingUtils.bytesToHex(MESSAGEDIGESTER_512.get().digest()));
+
+    TransactionHeader theHeader = thBuilder.build();
+    byte[] transactionHeaderByte = theHeader.toByteArray();
+    Sha256Hash transactionHeaderHashed = Sha256Hash.of(transactionHeaderByte);
+
+    ECKey.ECDSASignature signature = signerPrivateKey.sign(transactionHeaderHashed);
+    byte[] nativeSignature = SawtoothSigner.signWithNativeSecp256k1(signerPrivateKey,
+        transactionHeaderHashed);
+
+    Message intTX = mFact.getProcessRequest("aaaa", ByteBuffer.wrap(payload),
+        Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
+        signerPublicKey.getPublicKeyAsHex());
+    Batch toSend = mFact.createBatch(Arrays.asList(intTX), true);
+    BatchHeader constructedHeader = BatchHeader.parseFrom(toSend.getHeader());
+
+    Assert.assertTrue(testPythonServerBatchValidation(constructedHeader,
+        FormattingUtils.hexStringToByteArray(toSend.getHeaderSignature())));
+    Assert.assertEquals(toSend.getHeaderSignature(),
+        FormattingUtils.bytesToHex(decompressSignature(nativeSignature)));
+
+    // 304402202817db7d3c01c747a607eb652fe1aae1b307c3880439059cc1771002880563c102206e7f344eb8cb0daebc913360ff5d183bac6970a4a063fada6daa23a6246e06e6
+    // e0113b3258796af8faea123ee40ad25eafe184b8aca0bf263cba586f75a9b716044a6dae4d350be0fe5cbd745aabfd873524f00a04a7ad901886b85a5ebd6d16
+  }
+
+  /**
+   *
+   * Tests the validity of an empty Batch created by the MessageFactory.
+   *
+   * @throws NoSuchAlgorithmException
+   * @throws AssertFailException
+   * @throws IOException
+   */
+  @Test(dependsOnMethods = { "testBasicSigning" })
+  public void testEmptyBatchSigning()
+      throws NoSuchAlgorithmException, AssertFailException, IOException {
     ByteBuffer payload = ByteBuffer.wrap("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes());
-    Message intTX =
-        mFact.getProcessRequest("", payload, null, null, null, signerPublicKey.getPublicKeyAsHex());
+    Message intTX = mFact.getProcessRequest("", payload, null, null, null,
+        signerPublicKey.getPublicKeyAsHex());
     Batch toSend = mFact.createBatch(Arrays.asList(intTX), true);
     BatchHeader constructedHeader = BatchHeader.parseFrom(toSend.getHeader());
     Assert.assertTrue(testPythonServerBatchValidation(constructedHeader,
@@ -256,8 +307,8 @@ public class SigningTest {
     Sha256Hash transactionHeaderHashed = Sha256Hash.of(transactionHeaderByte);
 
     ECKey.ECDSASignature signature = signerPrivateKey.sign(transactionHeaderHashed);
-    byte[] nativeSignature =
-        SawtoothSigner.signWithNativeSecp256k1(signerPrivateKey, transactionHeaderHashed);
+    byte[] nativeSignature = SawtoothSigner.signWithNativeSecp256k1(signerPrivateKey,
+        transactionHeaderHashed);
 
     // Validation of the keys based on the Native library
     assertTrue(NativeSecp256k1.secKeyVerify(publicKey));
@@ -277,7 +328,6 @@ public class SigningTest {
         FormattingUtils.hexStringToByteArray(thBuilder.getSignerPublicKey())));
 
   }
-
 
   /**
    * This test is for signature validations on the Sawtooth Validator at
@@ -330,8 +380,8 @@ public class SigningTest {
 
     MESSAGEDIGESTER_512.get().reset();
     byte[] payloadBin = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa".getBytes();
-    String hexFormattedDigest =
-        FormattingUtils.bytesToHex(MESSAGEDIGESTER_512.get().digest(payloadBin));
+    String hexFormattedDigest = FormattingUtils
+        .bytesToHex(MESSAGEDIGESTER_512.get().digest(payloadBin));
 
     TransactionHeader tHeader = mFact.createTransactionHeader(hexFormattedDigest,
         Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), true,
@@ -341,9 +391,8 @@ public class SigningTest {
     Sha256Hash transactionHeaderHashed = Sha256Hash.of(transactionHeaderByte);
 
     ECKey.ECDSASignature signature = signerPrivateKey.sign(transactionHeaderHashed);
-    byte[] nativeSignature =
-        SawtoothSigner.signWithNativeSecp256k1(signerPrivateKey, transactionHeaderHashed);
-
+    byte[] nativeSignature = SawtoothSigner.signWithNativeSecp256k1(signerPrivateKey,
+        transactionHeaderHashed);
 
     // Verifying signature from the Key
     assertTrue(signerPrivateKey.verify(transactionHeaderHashed, signature));

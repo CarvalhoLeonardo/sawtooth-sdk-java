@@ -1,28 +1,70 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- * Copyright 2017 Intel Corporation * * Licensed under the Apache License, 
-	Version 2.0 (the "License"); * you may not use this file except in compliance 
-	with the License. * You may obtain a copy of the License at * * http://www.apache.org/licenses/LICENSE-2.0 
-	* * Unless required by applicable law or agreed to in writing, software * 
-	distributed under the License is distributed on an "AS IS" BASIS, * WITHOUT 
-	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. * See the 
-	License for the specific language governing permissions and * limitations 
-	under the License. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>sawtooth-sdk.examples</groupId>
-	<artifactId>intkey_java</artifactId>
-	<name>Sawtooth Java Example - Integer Key Transaction Processor</name>
+	<artifactId>smallbank_java</artifactId>
+	<name>Sawtooth Java Example - Small Bank TP Client</name>
 	<version>0.1.2-SNAPSHOT</version>
-	
+
 	<properties>
+		<grpc-version>1.13.1</grpc-version>
+		<protobuf-version>3.6.0</protobuf-version>
 		<apachelog-version>2.11.0</apachelog-version>
+		<ERROR_LEVEL>INFO</ERROR_LEVEL>
+		<SAWTOOTH_LOG_LEVEL>INFO</SAWTOOTH_LOG_LEVEL>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
 	<build>
+		<extensions>
+			<extension>
+				<groupId>kr.motd.maven</groupId>
+				<artifactId>os-maven-plugin</artifactId>
+				<version>1.4.0.Final</version>
+			</extension>
+		</extensions>
 		<plugins>
+			<plugin>
+				<groupId>org.xolstice.maven.plugins</groupId>
+				<artifactId>protobuf-maven-plugin</artifactId>
+				<version>0.5.1</version>
+				<extensions>true</extensions>
+				<configuration>
+					<protocArtifact>com.google.protobuf:protoc:${protobuf-version}:exe:${os.detected.classifier}</protocArtifact>
+					<pluginId>grpc-java</pluginId>
+					<pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc-version}:exe:${os.detected.classifier}</pluginArtifact>
+					<protoSourceRoot>src/main/resources/protoc</protoSourceRoot>
+					<clearOutputDirectory>false</clearOutputDirectory>
+
+				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>com.google.protobuf</groupId>
+						<artifactId>protobuf-java</artifactId>
+						<version>${protobuf-version}</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>compile</goal>
+							<goal>compile-custom</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>test</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>test-compile</goal>
+							<goal>test-compile-custom</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
@@ -48,7 +90,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.7.0</version>
+				<version>3.8.0</version>
 				<configuration>
 					<release>11</release>
 					<encoding>UTF-8</encoding>
@@ -80,10 +122,10 @@
 	<dependencies>
 		<dependency>
 			<groupId>sawtooth-sdk</groupId>
-			<artifactId>sdk-transaction-processor</artifactId>
+			<artifactId>sdk-rest-client</artifactId>
 			<version>0.1.2-SNAPSHOT</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-slf4j-impl</artifactId>
@@ -109,33 +151,11 @@
 		</dependency>
 
 		<dependency>
-			<groupId>co.nstant.in</groupId>
-			<artifactId>cbor</artifactId>
-			<version>0.8</version>
-		</dependency>
-		<!-- Java 10 adaptation for http://openjdk.java.net/jeps/320 -->
-		<dependency>
-			<groupId>javax.xml.bind</groupId>
-			<artifactId>jaxb-api</artifactId>
-			<version>2.3.0</version>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<version>6.14.3</version>
+			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.glassfish.jaxb</groupId>
-			<artifactId>jaxb-runtime</artifactId>
-			<version>2.3.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>javax.activation</groupId>
-			<artifactId>javax.activation-api</artifactId>
-			<version>1.2.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.sun.activation</groupId>
-			<artifactId>javax.activation</artifactId>
-			<version>1.2.0</version>
-		</dependency>
 	</dependencies>
 </project>

@@ -21,6 +21,11 @@
 			<dependencies>
 
 				<dependency>
+					<groupId>sawtooth-sdk</groupId>
+					<artifactId>sawtooth-sdk-protos</artifactId>
+					<version>v0.1.2-SNAPSHOT</version>
+				</dependency>
+				<dependency>
 					<groupId>com.salesforce.servicelibs</groupId>
 					<artifactId>reactor-grpc-stub</artifactId>
 				</dependency>
@@ -48,61 +53,6 @@
 			</dependencies>
 			<build>
 				<finalName>${project.artifactId}</finalName>
-				<plugins>
-					<plugin>
-						<groupId>org.xolstice.maven.plugins</groupId>
-						<artifactId>protobuf-maven-plugin</artifactId>
-						<extensions>true</extensions>
-						<configuration>
-							<protocArtifact>com.google.protobuf:protoc:${protobuf-version}:exe:${os.detected.classifier}</protocArtifact>
-							<pluginId>grpc-java</pluginId>
-							<pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc-version}:exe:${os.detected.classifier}</pluginArtifact>
-							<protoSourceRoot>${project.build.directory}/protoc</protoSourceRoot>
-							<clearOutputDirectory>false</clearOutputDirectory>
-							<token><![CDATA[
-							
-								The reactor-grpc plugin is used to generate some bindings for the reactive operation on the Messages I/O.
-								
-								The .protos are inherited from the main project, and expanded with some operations present
-								on src/main/resources/protos/
-
-							]]></token>
-							<protocPlugins>
-								<protocPlugin>
-									<id>reactor-grpc</id>
-									<artifactId>reactor-grpc</artifactId>
-									<groupId>com.salesforce.servicelibs</groupId>
-									<version>${reactor-grpc-version}</version>
-									<mainClass>com.salesforce.reactorgrpc.ReactorGrpcGenerator</mainClass>
-								</protocPlugin>
-							</protocPlugins>
-						</configuration>
-						<dependencies>
-							<dependency>
-								<groupId>com.google.protobuf</groupId>
-								<artifactId>protobuf-java</artifactId>
-								<version>${protobuf-version}</version>
-							</dependency>
-						</dependencies>
-						<executions>
-							<execution>
-								<phase>process-resources</phase>
-								<goals>
-									<goal>compile</goal>
-									<goal>compile-custom</goal>
-								</goals>
-							</execution>
-							<execution>
-								<id>test</id>
-								<phase>generate-test-sources</phase>
-								<goals>
-									<goal>test-compile</goal>
-									<goal>test-compile-custom</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
 			</build>
 		</profile>
 		<profile>
@@ -137,42 +87,6 @@
 								<exclude>${basedir}/src/main/java/sawtooth/sdk/reactive/common/messaging/MessageFactory.java</exclude>
 							</excludes>
 						</configuration>
-					</plugin>
-					<plugin>
-						<groupId>org.xolstice.maven.plugins</groupId>
-						<artifactId>protobuf-maven-plugin</artifactId>
-						<extensions>true</extensions>
-						<configuration>
-							<protocArtifact>com.google.protobuf:protoc:${protobuf-version}:exe:${os.detected.classifier}</protocArtifact>
-							<pluginId>grpc-java</pluginId>
-							<pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc-version}:exe:${os.detected.classifier}</pluginArtifact>
-							<protoSourceRoot>${project.build.directory}/protoc</protoSourceRoot>
-							<clearOutputDirectory>false</clearOutputDirectory>
-						</configuration>
-						<dependencies>
-							<dependency>
-								<groupId>com.google.protobuf</groupId>
-								<artifactId>protobuf-java</artifactId>
-								<version>${protobuf-version}</version>
-							</dependency>
-						</dependencies>
-						<executions>
-							<execution>
-								<phase>process-resources</phase>
-								<goals>
-									<goal>compile</goal>
-									<goal>compile-custom</goal>
-								</goals>
-							</execution>
-							<execution>
-								<id>test</id>
-								<phase>generate-test-sources</phase>
-								<goals>
-									<goal>test-compile</goal>
-									<goal>test-compile-custom</goal>
-								</goals>
-							</execution>
-						</executions>
 					</plugin>
 				</plugins>
 			</build>
@@ -257,7 +171,7 @@
 			<groupId>io.grpc</groupId>
 			<artifactId>grpc-netty</artifactId>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.lmax</groupId>
 			<artifactId>disruptor</artifactId>
@@ -286,7 +200,7 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 			</plugin>
 		</plugins>
-		
+
 		<resources>
 			<resource>
 				<directory>../protos</directory>

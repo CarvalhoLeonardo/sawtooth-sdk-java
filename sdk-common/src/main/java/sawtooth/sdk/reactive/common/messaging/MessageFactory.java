@@ -10,11 +10,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 import org.bitcoinj.core.ECKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import sawtooth.sdk.protobuf.Batch;
 import sawtooth.sdk.protobuf.BatchHeader;
 import sawtooth.sdk.protobuf.Event;
@@ -37,12 +40,11 @@ import sawtooth.sdk.reactive.common.utils.FormattingUtils;
  *
  * @author Leonardo T. de Carvalho
  *
- *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
- *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
  */
 public class MessageFactory extends CoreMessagesFactory {
-
 
   /**
    * Our ubiquitous Logger.
@@ -111,7 +113,6 @@ public class MessageFactory extends CoreMessagesFactory {
 
   public Batch createBatch(List<? extends Message> transactions, boolean trace) {
 
-
     TransactionList.Builder transactionListBuilder = TransactionList.newBuilder();
 
     List<String> txnSignatures = transactions.stream().map(et -> {
@@ -134,16 +135,15 @@ public class MessageFactory extends CoreMessagesFactory {
       return result;
     }).collect(Collectors.toList());
 
-
     BatchHeader batchHeader = BatchHeader.newBuilder().addAllTransactionIds(txnSignatures)
         .setSignerPublicKey(getPubliceyString()).build();
 
-    String headerSignature =
-        SawtoothSigner.signHexSequence(signerPrivateKey, batchHeader.toByteArray());
+    String headerSignature = SawtoothSigner.signHexSequence(signerPrivateKey,
+        batchHeader.toByteArray());
 
-    Batch.Builder batchBuilder =
-        Batch.newBuilder().setHeader(batchHeader.toByteString()).setHeaderSignature(headerSignature)
-            .addAllTransactions(transactionListBuilder.build().getTransactionsList());
+    Batch.Builder batchBuilder = Batch.newBuilder().setHeader(batchHeader.toByteString())
+        .setHeaderSignature(headerSignature)
+        .addAllTransactions(transactionListBuilder.build().getTransactionsList());
 
     if (LOGGER.isTraceEnabled() || trace) {
       batchBuilder.setTrace(true);
@@ -201,14 +201,12 @@ public class MessageFactory extends CoreMessagesFactory {
     reqBuilder.setHeader(createTransactionHeader(hexFormattedDigest, inputs, outputs, dependencies,
         Boolean.TRUE, batcherPubKey));
 
-
     reqBuilder.setPayload(ByteString.copyFrom(payload.array()));
 
     reqBuilder.setSignature(createHeaderSignature(reqBuilder.getHeader()));
 
     return reqBuilder.build();
   }
-
 
   private TpRegisterRequest createTpRegisterRequest() {
     TpRegisterRequest.Builder reqBuilder = TpRegisterRequest.newBuilder();
@@ -260,10 +258,10 @@ public class MessageFactory extends CoreMessagesFactory {
     transactionBuilder.setHeader(theRequest.getHeader().toByteString());
     transactionBuilder.setPayload(theRequest.getPayload());
     String hexFormattedDigest = generateHASH512Hex(theRequest.getPayload().toByteArray());
-    TransactionHeader header =
-        createTransactionHeader(hexFormattedDigest, theRequest.getHeader().getInputsList(),
-            theRequest.getHeader().getOutputsList(), theRequest.getHeader().getDependenciesList(),
-            Boolean.TRUE, theRequest.getHeader().getBatcherPublicKey());
+    TransactionHeader header = createTransactionHeader(hexFormattedDigest,
+        theRequest.getHeader().getInputsList(), theRequest.getHeader().getOutputsList(),
+        theRequest.getHeader().getDependenciesList(), Boolean.TRUE,
+        theRequest.getHeader().getBatcherPublicKey());
     transactionBuilder.setHeader(header.toByteString());
     transactionBuilder.setHeaderSignature(createHeaderSignature(header));
 
@@ -317,12 +315,9 @@ public class MessageFactory extends CoreMessagesFactory {
     return newMessage;
   }
 
-
-
   public final String getFamilyName() {
     return familyName;
   }
-
 
   public final String getFamilyVersion() {
     return familyVersion;
@@ -337,12 +332,14 @@ public class MessageFactory extends CoreMessagesFactory {
       throws NoSuchAlgorithmException, InvalidProtocolBufferException {
     if (batcherPubKey == null || batcherPubKey.isEmpty()) {
       throw new InvalidProtocolBufferException("No batcher public key informed.");
+    } else {
+      LOGGER.debug("Batcher Public Key : {}.", batcherPubKey);
     }
-    Message newMessage =
-        Message.newBuilder()
-            .setContent(createTpProcessRequest(contextId, payload, inputs, outputs, dependencies,
-                batcherPubKey).toByteString())
-            .setCorrelationId(generateId()).setMessageType(MessageType.TP_PROCESS_REQUEST).build();
+    Message newMessage = Message.newBuilder()
+        .setContent(
+            createTpProcessRequest(contextId, payload, inputs, outputs, dependencies, batcherPubKey)
+                .toByteString())
+        .setCorrelationId(generateId()).setMessageType(MessageType.TP_PROCESS_REQUEST).build();
 
     return newMessage;
   }
@@ -363,8 +360,6 @@ public class MessageFactory extends CoreMessagesFactory {
     return newMessage;
   }
 
-
-
   public Message getProcessResponse(String correlationId, TpProcessResponse originalResponse) {
     Message newMessage = Message.newBuilder().setContent(originalResponse.toByteString())
         .setCorrelationId(correlationId).setMessageType(MessageType.TP_PROCESS_RESPONSE).build();
@@ -383,7 +378,6 @@ public class MessageFactory extends CoreMessagesFactory {
 
     return newMessage;
   }
-
 
   public Message getRegisterResponse(int status, String correlationId) {
     Message newMessage = Message.newBuilder()

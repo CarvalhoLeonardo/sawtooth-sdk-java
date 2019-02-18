@@ -32,7 +32,9 @@
 		<SAWTOOTH_LOG_LEVEL>INFO</SAWTOOTH_LOG_LEVEL>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
+
 	<modules>
+		<module>sawtooth-sdk-protos</module>
 		<module>sdk-common</module>
 		<module>sdk-transaction-processor</module>
 		<module>sdk-rest-client</module>
@@ -243,10 +245,10 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.7.0</version>
+					<version>3.8.0</version>
 					<inherited>true</inherited>
 					<configuration>
-						<release>10</release>
+						<release>11</release>
 						<encoding>UTF-8</encoding>
 						<optimize>true</optimize>
 					</configuration>
