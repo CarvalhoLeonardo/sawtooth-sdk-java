@@ -27,6 +27,11 @@
 					<artifactId>sdk-common</artifactId>
 					<version>${project.version}</version>
 				</dependency>
+				<dependency>
+					<groupId>sawtooth-sdk</groupId>
+					<artifactId>sawtooth-sdk-protos</artifactId>
+					<version>${project.version}</version>
+				</dependency>
 			</dependencies>
 		</profile>
 		<profile>

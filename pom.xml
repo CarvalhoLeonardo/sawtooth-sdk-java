@@ -35,9 +35,11 @@
 
 	<modules>
 		<module>sawtooth-sdk-protos</module>
-		<module>sdk-common</module>
+		<module>sawtooth-sdk-common</module>
+		<module>sawtooth-sdk-event-listener</module>
+		<!--module>sawtooth-sdk-transaction-processor</module -->
 		<module>sdk-transaction-processor</module>
-		<module>sdk-rest-client</module>
+		<module>sawtooth-rest-client</module>
 	</modules>
 	<dependencyManagement>
 		<dependencies>

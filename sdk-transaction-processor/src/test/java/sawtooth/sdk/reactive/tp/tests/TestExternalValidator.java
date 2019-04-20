@@ -9,12 +9,15 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import sawtooth.sdk.protobuf.Batch;
 import sawtooth.sdk.protobuf.BatchList;
 import sawtooth.sdk.protobuf.ClientBatchStatusResponse;
@@ -101,8 +104,6 @@ public class TestExternalValidator extends BaseTest {
 
   private TestTransactionProcessor tpUnderTest;
 
-
-
   @BeforeClass
   public void setUp() {
     tpUnderTest = new TestTransactionProcessor(configData.getProperty("validator_add"),
@@ -123,7 +124,7 @@ public class TestExternalValidator extends BaseTest {
   /**
    * Let's send one ping.
    *
-   * DISABLED - we don't haev any motive to ping the Validator. Yet.
+   * DISABLED - we don't have any motive to ping the Validator. Yet.
    *
    * @throws InvalidProtocolBufferException
    * @throws InterruptedException
@@ -140,10 +141,56 @@ public class TestExternalValidator extends BaseTest {
 
   /**
    *
-   * This will send a Batch Request and expect a Batch Response.
+   * This will send a hundred Batch Request and expect the Batch Responses.
    *
-   * Since the External Validator probably don´t get a Handler, we will not test the processing on
-   * our side.
+   * @throws InterruptedException
+   * @throws ExecutionException
+   * @throws NoSuchAlgorithmException
+   * @throws InvalidProtocolBufferException
+   */
+  /*
+   * @Test public void testSendHundredLameBatches() throws InterruptedException, ExecutionException,
+   * NoSuchAlgorithmException, InvalidProtocolBufferException { ByteBuffer lameData =
+   * ByteBuffer.wrap("THIS IS A LAME PAYLOAD".getBytes()); String testAddress =
+   * testTH.getNameSpaces().iterator().next(); Map<String, Future<Message>> results = new
+   * HashMap<>(); Flux<Boolean> messageReceiver = Flux.<Boolean>create(receiver -> { receiver. });
+   *
+   * for (int i = 0; i < 99; i++) { List<String> lameAddress = Arrays.asList(
+   * testTH.generateAddress(testTH.getNameSpaces().iterator().next(), String.valueOf(i))); String
+   * correlationID = UUID.randomUUID().toString();
+   *
+   * Message lameProcessRequest = testTH.getMessageFactory().getProcessRequest(
+   * FormattingUtils.bytesToHex(testTH.getExternalContextID()), lameData, lameAddress, lameAddress,
+   * null, testTH.getMessageFactory().getPubliceyString());
+   *
+   * Batch lameBatchRequest = testTH.getMessageFactory()
+   * .createBatch(Arrays.asList(lameProcessRequest), true);
+   *
+   *
+   * BatchList.Builder rbl = BatchList.newBuilder();rbl.addBatches(lameBatchRequest);
+   *
+   * Message theReq = Message.newBuilder().setContent(rbl.build().toByteString())
+   * .setCorrelationId(correlationID).setMessageType(MessageType.CLIENT_BATCH_SUBMIT_REQUEST)
+   * .build();
+   *
+   * results.put(correlationID,tpUnderTest.send(theReq));
+   *
+   * ClientBatchStatusResponse responsePayload = ClientBatchStatusResponse.newBuilder()
+   * .mergeFrom(answer.getContent()).build();
+   *
+   * LOGGER.debug("Got the response {} with the payload {}.",answer,responsePayload);
+   *
+   * Assert.assertEquals(answer.getCorrelationId(),correlationID,"We got the wrong correlation id.")
+   * ;Assert.assertEquals(answer.getMessageType(),MessageType.
+   * CLIENT_BATCH_SUBMIT_RESPONSE,"We didn't receive the correct message type.");
+   *
+   * Assert.assertEquals(responsePayload.getStatus(),ClientBatchStatusResponse.Status.
+   * OK,"The transaction didn't succeed."); }}
+   */
+
+  /**
+   *
+   * This will send a Batch Request and expect a Batch Response.
    *
    * @throws InterruptedException
    * @throws ExecutionException
@@ -153,18 +200,18 @@ public class TestExternalValidator extends BaseTest {
   @Test
   public void testSendOneLameBatch() throws InterruptedException, ExecutionException,
       NoSuchAlgorithmException, InvalidProtocolBufferException {
-    ByteBuffer lameData = ByteBuffer.wrap("THIS IS A LAME PAYLOAD".getBytes());
+    ByteBuffer lameData = ByteBuffer
+        .wrap(("THIS IS A LAME PAYLOAD [" + UUID.randomUUID().toString() + "]").getBytes());
     List<String> lameAddress = Arrays
         .asList(testTH.generateAddress(testTH.getNameSpaces().iterator().next(), "aaaaaaaaaaaa"));
     String correlationID = UUID.randomUUID().toString();
-
 
     Message lameProcessRequest = testTH.getMessageFactory().getProcessRequest(
         FormattingUtils.bytesToHex(testTH.getExternalContextID()), lameData, lameAddress,
         lameAddress, null, testTH.getMessageFactory().getPubliceyString());
 
-    Batch lameBatchRequest =
-        testTH.getMessageFactory().createBatch(Arrays.asList(lameProcessRequest), true);
+    Batch lameBatchRequest = testTH.getMessageFactory()
+        .createBatch(Arrays.asList(lameProcessRequest), true);
 
     /*
      * Yeah, you need to send a BatchList, NOT a Batch here...
@@ -172,16 +219,16 @@ public class TestExternalValidator extends BaseTest {
     BatchList.Builder rbl = BatchList.newBuilder();
     rbl.addBatches(lameBatchRequest);
 
-    Message theReq =
-        Message.newBuilder().setContent(rbl.build().toByteString()).setCorrelationId(correlationID)
-            .setMessageType(MessageType.CLIENT_BATCH_SUBMIT_REQUEST).build();
+    Message theReq = Message.newBuilder().setContent(rbl.build().toByteString())
+        .setCorrelationId(correlationID).setMessageType(MessageType.CLIENT_BATCH_SUBMIT_REQUEST)
+        .build();
 
     Message answer = tpUnderTest.send(theReq).get();
 
     Assert.assertNotNull(answer);
 
-    ClientBatchStatusResponse responsePayload =
-        ClientBatchStatusResponse.newBuilder().mergeFrom(answer.getContent()).build();
+    ClientBatchStatusResponse responsePayload = ClientBatchStatusResponse.newBuilder()
+        .mergeFrom(answer.getContent()).build();
 
     LOGGER.debug("Got the response {} with the payload {}.", answer, responsePayload);
 

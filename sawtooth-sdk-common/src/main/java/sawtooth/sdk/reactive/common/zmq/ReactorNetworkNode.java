@@ -1,4 +1,4 @@
-package sawtooth.sdk.reactive.core;
+package sawtooth.sdk.reactive.common.zmq;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,12 +12,14 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+
 import org.zeromq.ZContext;
 import org.zeromq.ZLoop;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.PollItem;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMsg;
+
 import reactor.core.Disposable;
 import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
@@ -29,26 +31,24 @@ import reactor.util.concurrent.Queues;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
-import sawtooth.sdk.reactive.tp.messaging.ReceivingHandler;
-import sawtooth.sdk.reactive.tp.messaging.SenderAgent;
 
 /**
  *
  * @author Leonardo T. de Carvalho
  *
- *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
- *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
- *         A Network Node is an agent that holds the I/O of the messages to a Sawtooth Solution.
+ * A Network Node is an agent that holds the I/O of the messages to a Sawtooth Solution.
  *
- *         It will store maps of current sockets and messages being worked on.
+ * It will store maps of current sockets and messages being worked on.
  *
  */
 public class ReactorNetworkNode implements Runnable {
 
   // Messages Types that we do not send to a validator
-  private final static List<Message.MessageType> DEAD_END_MESSAGES =
-      Arrays.asList(MessageType.TP_PROCESS_REQUEST);
+  private final static List<Message.MessageType> DEAD_END_MESSAGES = Arrays
+      .asList(MessageType.TP_PROCESS_REQUEST);
 
   private final static Logger LOGGER = Loggers.getLogger(ReactorNetworkNode.class);
 
@@ -61,8 +61,7 @@ public class ReactorNetworkNode implements Runnable {
   // Correlation IDs of messages being worked on
   private final Map<String, byte[]> corrIDsAtWork = new ConcurrentHashMap<String, byte[]>();
   // Messages waiting responses
-  private final Map<String, CompletableFuture<Message>> expectingResponses =
-      new ConcurrentHashMap<String, CompletableFuture<Message>>();
+  private final Map<String, CompletableFuture<Message>> expectingResponses = new ConcurrentHashMap<String, CompletableFuture<Message>>();
 
   // The socket visible to the TCP protocol
   Socket frontendSocket;
@@ -98,7 +97,6 @@ public class ReactorNetworkNode implements Runnable {
   // sends to EOL task processor.
   private EmitterProcessor<Message> receivingEmitter = EmitterProcessor.<Message>create();
 
-
   byte[] remoteRouterID = null;
 
   // Emitter for messages we want to send - only put it in the localProcessor.getSenderProcessor().
@@ -122,8 +120,8 @@ public class ReactorNetworkNode implements Runnable {
     this.threadCount = parallelismFactor;
     this.NODE_IDENTIFICATION = name;
     this.server = isServer;
-    localProcessor =
-        new ReactorCoreProcessor(threadCount, Queues.SMALL_BUFFER_SIZE, this.NODE_IDENTIFICATION);
+    localProcessor = new ReactorCoreProcessor(threadCount, Queues.SMALL_BUFFER_SIZE,
+        this.NODE_IDENTIFICATION);
 
     senderEmitter.log().subscribeOn(Schedulers.parallel(), false)
         .subscribe(localProcessor.getSenderProcessor());
@@ -142,11 +140,9 @@ public class ReactorNetworkNode implements Runnable {
 
   }
 
-
   public final Flux<Message> getIncomingFlux() {
     return localProcessor.getIncomingMessages().share();
   }
-
 
   public final Flux<Message> getOutgoingFlux() {
     return localProcessor.getOutgoingMessages().share();
@@ -173,7 +169,6 @@ public class ReactorNetworkNode implements Runnable {
     frontendSocket
         .setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
 
-
     if (server) {
       LOGGER.debug(NODE_IDENTIFICATION + " Server mode");
       frontendSocket
@@ -182,7 +177,7 @@ public class ReactorNetworkNode implements Runnable {
         LOGGER.debug(NODE_IDENTIFICATION + " Server : Bound to " + mqMainAddress);
       }
     } else {
-      LOGGER.debug(NODE_IDENTIFICATION + " Client mode");
+      LOGGER.debug("{} Client mode to address {}...", NODE_IDENTIFICATION, mqMainAddress);
       if (frontendSocket.connect(mqMainAddress)) {
         // wait for probe reply before sending
         ZMsg ack = ZMsg.recvMsg(frontendSocket);
@@ -199,8 +194,8 @@ public class ReactorNetworkNode implements Runnable {
 
     ZLoop looper = new ZLoop(context);
 
-    ParallelFlux<Message> multipleSenderFlux =
-        localProcessor.getOutgoingMessages().parallel(threadCount).runOn(Schedulers.parallel());
+    ParallelFlux<Message> multipleSenderFlux = localProcessor.getOutgoingMessages()
+        .parallel(threadCount).runOn(Schedulers.parallel());
 
     IntStream.range(1, threadCount + 1).forEach(n -> {
       LOGGER.debug(NODE_IDENTIFICATION + " - Creating individual Worker " + n);
@@ -215,8 +210,8 @@ public class ReactorNetworkNode implements Runnable {
       PollItem pi = new PollItem(worker, ZMQ.Poller.POLLIN);
       pollers.add(pi);
 
-      ReceivingHandler mesgReceiver =
-          new ReceivingHandler(receivingEmitter, this.NODE_IDENTIFICATION, n, corrIDsAtWork);
+      ReceivingHandler mesgReceiver = new ReceivingHandler(receivingEmitter,
+          this.NODE_IDENTIFICATION, n, corrIDsAtWork);
       looper.addPoller(pi, mesgReceiver, null);
 
       multipleSenderFlux.groups().elementAt(n - 1).doOnNext(msf -> {
@@ -251,7 +246,6 @@ public class ReactorNetworkNode implements Runnable {
       ZMQ.proxy(frontendSocket, backEndSocket, null);
       LOGGER.debug(this.NODE_IDENTIFICATION + " Proxy stopped.");
     });
-
 
     tPoll.submit(() -> {
       LOGGER.debug(this.NODE_IDENTIFICATION + " Starting to poll... ");

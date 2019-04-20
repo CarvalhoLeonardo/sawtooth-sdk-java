@@ -1,0 +1,78 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>sawtooth-sdk</groupId>
+		<artifactId>parent</artifactId>
+		<version>0.1.2-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+	<artifactId>sdk-event-listener</artifactId>
+	<name>Sawtooth SDK - Event Listener</name>
+	<properties>
+		<sw_validator_url>tcp://127.0.0.1:4004</sw_validator_url>
+	</properties>
+	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources/</directory>
+				<includes>
+					<include>*.properties</include>
+				</includes>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+		<testResources>
+			<testResource>
+				<directory>src/test/resources/</directory>
+				<includes>
+					<include>*.properties</include>
+				</includes>
+				<filtering>true</filtering>
+			</testResource>
+			<testResource>
+				<directory>src/test/resources/</directory>
+				<includes>
+					<include>*.bin</include>
+				</includes>
+				<filtering>false</filtering>
+			</testResource>
+		</testResources>
+	</build>
+	<dependencies>
+		<dependency>
+			<groupId>sawtooth-sdk</groupId>
+			<artifactId>sdk-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.zeromq</groupId>
+			<artifactId>jeromq</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-core</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.lmax</groupId>
+			<artifactId>disruptor</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.glassfish.jersey.inject</groupId>
+			<artifactId>jersey-cdi2-se</artifactId>
+		</dependency>
+
+
+	</dependencies>
+</project>

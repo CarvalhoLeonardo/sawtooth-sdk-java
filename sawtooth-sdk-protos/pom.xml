@@ -20,10 +20,8 @@
 	</parent>
 
 	<artifactId>sawtooth-sdk-protos</artifactId>
-	<version>v0.1.2-SNAPSHOT</version>
-
-	<name>${project.parent.groupId}:${project.artifactId}</name>
-	<description>"Java classes generated from Sawtooth proto definition files, to interact with the component, consensus, and other validator interfaces"</description>
+	<name>Sawtooth SDK Protobufs</name>
+	<description>Java classes generated from Sawtooth proto definition files, to interact with the component, consensus, and other validator interfaces</description>
 	<url>https://sawtooth.hyperledger.org</url>
 
 	<licenses>
@@ -83,7 +81,7 @@
 			<extension>
 				<groupId>kr.motd.maven</groupId>
 				<artifactId>os-maven-plugin</artifactId>
-				<version>1.4.0.Final</version>
+				<version>1.6.0</version>
 			</extension>
 		</extensions>
 		<plugins>

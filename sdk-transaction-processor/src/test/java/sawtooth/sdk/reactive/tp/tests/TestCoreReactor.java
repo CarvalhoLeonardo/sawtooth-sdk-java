@@ -22,7 +22,7 @@ import reactor.core.scheduler.Schedulers;
 import reactor.util.concurrent.Queues;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.reactive.common.messaging.MessageFactory;
-import sawtooth.sdk.reactive.core.ReactorCoreProcessor;
+import sawtooth.sdk.reactive.common.zmq.ReactorCoreProcessor;
 
 @Test
 public class TestCoreReactor extends BaseTest {
