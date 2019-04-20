@@ -27,9 +27,9 @@ These instructions will get you a copy of the project up and running on your loc
 
 ## Prerequisites
 
-### Java 10
+### Java 11
 
-The java version may be 10.
+The java version may be 11.
 
 ### Maven
 
@@ -37,7 +37,7 @@ Version 3.5.0 or higher.
 
 ### Sawtooth
 
-. Versions 1.0.4 or 1.0.5, with [this patch](https://github.com/CarvalhoLeonardo/sawtooth-core/commit/1ce3dea3aaf6075dc738ebf0022b6fde970b3fa2), where used to validate.
+. Versions 1.0.5+, with [this patch](https://github.com/CarvalhoLeonardo/sawtooth-core/commit/1ce3dea3aaf6075dc738ebf0022b6fde970b3fa2), where used to validate.
 
 . To run all tests, please register the test family, with `sawset proposal create sawtooth.validator.transaction_families='[..., {"family":"sawtooth_settings","version":"1.0"}, {"family":"coretests", "version":"0.0"}]'` 
 
@@ -70,7 +70,7 @@ If it isn't at localhost, you can change the address on the maven CLI:
 
 * [Maven](https://maven.apache.org/) 	- Dependency Management
 * [Eclipse](http://www.eclipse.org/)	- IDE
-* [TestNG](https://testng.org/)			- Testing suite.
+* [TestNG](https://testng.org/)		- Testing suite.
 
 
 ## Authors
