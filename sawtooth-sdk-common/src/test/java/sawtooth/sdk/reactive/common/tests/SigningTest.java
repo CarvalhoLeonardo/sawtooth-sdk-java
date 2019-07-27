@@ -64,6 +64,11 @@ public class SigningTest {
   private static ECKey signerPrivateKey = null;
   private static ECKey signerPublicKey = null;
 
+  private static final String TEST_FAMILY = "test_family";
+  private static final String TEST_FAMILY_VERSION = "0.0.0";
+
+  private static final byte[] TEST_PAYLOAD = "Hi Mary, this is John".getBytes();
+
   /**
    * This method decompress the signature under test.
    *
@@ -145,8 +150,6 @@ public class SigningTest {
 
   SawtoothConfiguration config = new SawtoothConfiguration();
 
-  ThreadLocal<MessageDigest> MESSAGEDIGESTER_512 = new ThreadLocal<>();
-
   @BeforeClass
   public void setUp() throws FileNotFoundException, IOException {
     try (BufferedReader privateKeyReader = new BufferedReader(
@@ -156,9 +159,9 @@ public class SigningTest {
       signerPrivateKey = ECKey.fromPrivate(privkey, false);
       signerPublicKey = ECKey.fromPublicOnly(ECKey.publicKeyFromPrivate(privkey, true));
 
-      mFact = new MessageFactory("testmessagefactory", "0.0.0", signerPrivateKey, signerPublicKey,
-          "testmessagefactory");
-      MESSAGEDIGESTER_512.set(MessageDigest.getInstance("SHA-512"));
+      mFact = new MessageFactory(TEST_FAMILY, TEST_FAMILY_VERSION, signerPrivateKey,
+          signerPublicKey, TEST_FAMILY);
+
     } catch (IOException e) {
       LOGGER.error("IO Exception : " + e.getMessage());
       fail(e.getMessage());
@@ -187,10 +190,9 @@ public class SigningTest {
     Assert.assertTrue(ECKey.decompressPoint(pubKey2.getPubKeyPoint()).isValid(),
         "Message Factory Public key failed the decompressed validation.");
 
-    byte[] dataToSign = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes();
-    Sha256Hash dataHashed = Sha256Hash.of(dataToSign);
+    Sha256Hash dataHashed = Sha256Hash.of(TEST_PAYLOAD);
 
-    byte[] compactSignature = SawtoothSigner.generateCompactSig(signerPrivateKey, dataToSign);
+    byte[] compactSignature = SawtoothSigner.generateCompactSig(signerPrivateKey, TEST_PAYLOAD);
     byte[] nativeSignature = NativeSecp256k1.sign(dataHashed.getBytes(),
         signerPrivateKey.getPrivKeyBytes());
 
@@ -220,33 +222,32 @@ public class SigningTest {
    */
   @Test(dependsOnMethods = { "testBasicSigning" })
   public void testBatchSigning() throws NoSuchAlgorithmException, AssertFailException, IOException {
-    byte[] publicKey = Utils.bigIntegerToBytes(new BigInteger(1, signerPrivateKey.getPubKey()), 32);
-    String publicKeyHex = FormattingUtils.bytesToHex(publicKey);
+    MessageDigest local512Digester = MessageDigest.getInstance("SHA-512");
 
     TransactionHeader.Builder thBuilder = TransactionHeader.newBuilder();
-    byte[] payload = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes();
-    thBuilder.setFamilyName("aaaaaaa");
-    thBuilder.setFamilyVersion("0.0");
-    thBuilder.setSignerPublicKey(FormattingUtils.bytesToHex(signerPrivateKey.getPubKey()));
-    thBuilder.setBatcherPublicKey(FormattingUtils.bytesToHex(signerPrivateKey.getPubKey()));
+    thBuilder.setFamilyName(TEST_FAMILY);
+    thBuilder.setFamilyVersion(TEST_FAMILY_VERSION);
+    thBuilder.setSignerPublicKey(signerPublicKey.getPublicKeyAsHex());
+    thBuilder.setBatcherPublicKey(signerPublicKey.getPublicKeyAsHex());
     thBuilder.setNonce(String.valueOf(Calendar.getInstance().getTimeInMillis()));
-    MESSAGEDIGESTER_512.get().reset();
-    MESSAGEDIGESTER_512.get().update(payload, 0, payload.length);
-    thBuilder.setPayloadSha512(FormattingUtils.bytesToHex(MESSAGEDIGESTER_512.get().digest()));
 
-    TransactionHeader theHeader = thBuilder.build();
-    byte[] transactionHeaderByte = theHeader.toByteArray();
-    Sha256Hash transactionHeaderHashed = Sha256Hash.of(transactionHeaderByte);
+    local512Digester.update(TEST_PAYLOAD, 0, TEST_PAYLOAD.length);
+    thBuilder.setPayloadSha512(FormattingUtils.bytesToHex(local512Digester.digest()));
 
-    ECKey.ECDSASignature signature = signerPrivateKey.sign(transactionHeaderHashed);
-    byte[] nativeSignature = SawtoothSigner.signWithNativeSecp256k1(signerPrivateKey,
-        transactionHeaderHashed);
-
-    Message intTX = mFact.getProcessRequest("aaaa", ByteBuffer.wrap(payload),
+    Message intTX = mFact.getProcessRequest("", ByteBuffer.wrap(TEST_PAYLOAD),
         Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
         signerPublicKey.getPublicKeyAsHex());
     Batch toSend = mFact.createBatch(Arrays.asList(intTX), true);
     BatchHeader constructedHeader = BatchHeader.parseFrom(toSend.getHeader());
+
+    LOGGER.debug(" Batch Header {} ", toSend.getHeader());
+    LOGGER.debug(" Batch Header Signature {} ", toSend.getHeaderSignature());
+    LOGGER.debug(" Batch Header Bytestring {} ", toSend.getHeaderSignatureBytes());
+
+    Sha256Hash transactionHeaderHashed = Sha256Hash.of(constructedHeader.toByteArray());
+
+    byte[] nativeSignature = SawtoothSigner.signWithNativeSecp256k1(signerPrivateKey,
+        transactionHeaderHashed);
 
     Assert.assertTrue(testPythonServerBatchValidation(constructedHeader,
         FormattingUtils.hexStringToByteArray(toSend.getHeaderSignature())));
@@ -268,7 +269,7 @@ public class SigningTest {
   @Test(dependsOnMethods = { "testBasicSigning" })
   public void testEmptyBatchSigning()
       throws NoSuchAlgorithmException, AssertFailException, IOException {
-    ByteBuffer payload = ByteBuffer.wrap("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes());
+    ByteBuffer payload = ByteBuffer.wrap(TEST_PAYLOAD);
     Message intTX = mFact.getProcessRequest("", payload, null, null, null,
         signerPublicKey.getPublicKeyAsHex());
     Batch toSend = mFact.createBatch(Arrays.asList(intTX), true);
@@ -284,23 +285,23 @@ public class SigningTest {
    * "https://sawtooth.hyperledger.org/docs/core/releases/1.0/_autogen/txn_submit_tutorial.html#building-the-transaction">Documentation</a>.
    *
    * @throws AssertFailException
+   * @throws NoSuchAlgorithmException
    */
   @Test(dependsOnMethods = { "testBasicSigning" })
-  public void testManualTransactioHeaderSigning() throws AssertFailException {
-
+  public void testManualTransactioHeaderSigning()
+      throws AssertFailException, NoSuchAlgorithmException {
+    MessageDigest local512Digester = MessageDigest.getInstance("SHA-512");
     byte[] publicKey = Utils.bigIntegerToBytes(new BigInteger(1, signerPrivateKey.getPubKey()), 32);
     String publicKeyHex = FormattingUtils.bytesToHex(publicKey);
 
     TransactionHeader.Builder thBuilder = TransactionHeader.newBuilder();
-    byte[] payload = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes();
-    thBuilder.setFamilyName("aaaaaaa");
-    thBuilder.setFamilyVersion("0.0");
+    thBuilder.setFamilyName(TEST_FAMILY);
+    thBuilder.setFamilyVersion(TEST_FAMILY_VERSION);
     thBuilder.setSignerPublicKey(FormattingUtils.bytesToHex(signerPrivateKey.getPubKey()));
     thBuilder.setBatcherPublicKey(FormattingUtils.bytesToHex(signerPrivateKey.getPubKey()));
     thBuilder.setNonce(String.valueOf(Calendar.getInstance().getTimeInMillis()));
-    MESSAGEDIGESTER_512.get().reset();
-    MESSAGEDIGESTER_512.get().update(payload, 0, payload.length);
-    thBuilder.setPayloadSha512(FormattingUtils.bytesToHex(MESSAGEDIGESTER_512.get().digest()));
+    local512Digester.update(TEST_PAYLOAD, 0, TEST_PAYLOAD.length);
+    thBuilder.setPayloadSha512(FormattingUtils.bytesToHex(local512Digester.digest()));
 
     TransactionHeader theHeader = thBuilder.build();
     byte[] transactionHeaderByte = theHeader.toByteArray();
@@ -378,10 +379,8 @@ public class SigningTest {
   public void testTransactioHeaderSigning()
       throws AssertFailException, NoSuchAlgorithmException, InvalidProtocolBufferException {
 
-    MESSAGEDIGESTER_512.get().reset();
-    byte[] payloadBin = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa".getBytes();
-    String hexFormattedDigest = FormattingUtils
-        .bytesToHex(MESSAGEDIGESTER_512.get().digest(payloadBin));
+    MessageDigest local512Digester = MessageDigest.getInstance("SHA-512");
+    String hexFormattedDigest = FormattingUtils.bytesToHex(local512Digester.digest(TEST_PAYLOAD));
 
     TransactionHeader tHeader = mFact.createTransactionHeader(hexFormattedDigest,
         Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), true,
