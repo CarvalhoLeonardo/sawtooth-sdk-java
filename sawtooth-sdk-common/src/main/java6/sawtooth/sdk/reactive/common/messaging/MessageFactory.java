@@ -373,7 +373,7 @@ public class MessageFactory {
     TpStateSetRequest.Builder reqBuilder = TpStateSetRequest.newBuilder().setContextId(contextId);
 
     TpStateEntry.Builder stateBuilder = TpStateEntry.newBuilder();
-    
+
     for (TpStateEntry eachSEntry:entryArrayList ) {
       stateBuilder.clear();
       stateBuilder.setAddress(eachSEntry.getAddress());
@@ -532,7 +532,7 @@ public class MessageFactory {
 
   /**
    * generate a random String using the sha-512 algorithm, to correlate sent messages with futures
-   * 
+   *
    * Being random, we dont need to reset() it
    *
    * @return a random String

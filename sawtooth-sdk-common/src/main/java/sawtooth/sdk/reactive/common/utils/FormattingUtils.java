@@ -4,7 +4,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.function.Supplier;
+
 import javax.xml.bind.DatatypeConverter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -19,8 +21,8 @@ public class FormattingUtils {
   /**
    * This digester is relatively expensive, let's cache it on a per thread basis.
    */
-  private static final ThreadLocal<MessageDigest> MESSAGEDIGESTER_512 =
-      ThreadLocal.withInitial(new Supplier<MessageDigest>() {
+  private static final ThreadLocal<MessageDigest> MESSAGEDIGESTER_512 = ThreadLocal
+      .withInitial(new Supplier<MessageDigest>() {
         @Override
         public MessageDigest get() {
           try {
@@ -34,7 +36,6 @@ public class FormattingUtils {
         }
       });
 
-
   /**
    * Helper, to concentrate the parsing of Bytes to String over the project.
    *
@@ -45,7 +46,6 @@ public class FormattingUtils {
     final String result = Hex.toHexString(bytes);
     return result;
   }
-
 
   public static String bytesToHexASCII(final byte[] bytes) {
     return new String(bytes, StandardCharsets.US_ASCII);
@@ -59,16 +59,6 @@ public class FormattingUtils {
    */
   public static String bytesToHexBase64(final byte[] bytes) {
     return DatatypeConverter.printBase64Binary(bytes);
-  }
-
-  /**
-   * Helper function. for dealing with Strings that come in via protobuf ByteString encoded cbor.
-   *
-   * @param fromCbor byte array from a String that came in via cbor
-   * @return a UTF-8 representation of the byte array
-   */
-  public static String cborByteArrayToString(byte[] fromCbor) {
-    return new String(fromCbor, StandardCharsets.US_ASCII);
   }
 
   /**
@@ -103,6 +93,5 @@ public class FormattingUtils {
   public static byte[] hexStringToByteArray(final String s) {
     return Hex.decode(s);
   }
-
 
 }

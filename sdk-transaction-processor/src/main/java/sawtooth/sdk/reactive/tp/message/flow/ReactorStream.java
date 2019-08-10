@@ -1,4 +1,4 @@
-package sawtooth.sdk.reactive.tp.messaging;
+package sawtooth.sdk.reactive.tp.message.flow;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;

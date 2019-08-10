@@ -2,9 +2,9 @@
  * Copyright 2016, 2017 Intel Corporation Licensed under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -26,11 +26,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import co.nstant.in.cbor.CborBuilder;
 import co.nstant.in.cbor.CborDecoder;
 import co.nstant.in.cbor.CborEncoder;
@@ -51,14 +53,14 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
 
   private static final Logger LOGGER = LoggerFactory.getLogger(IntegerKeyHandler.class.getName());
 
-  private static final long MIN_VALUE = 0;
-  private static final long MAX_VALUE = Long.MAX_VALUE;
   private static final long MAX_NAME_LENGTH = 20;
+  private static final long MAX_VALUE = Long.MAX_VALUE;
+  private static final long MIN_VALUE = 0;
   private MessageFactory tpMesgFactory;
 
   /**
    * constructor.
-   * 
+   *
    */
   public IntegerKeyHandler() {
 
@@ -69,29 +71,14 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
     }
   }
 
-  @Override
-  public String transactionFamilyName() {
-    return tpMesgFactory.getFamilyName();
-  }
-
-  @Override
-  public String getVersion() {
-    return tpMesgFactory.getFamilyVersion();
-  }
-
-  @Override
-  public Collection<String> getNameSpaces() {
-    return Arrays.asList(tpMesgFactory.getNameSpaces());
-  }
-
   /**
    * Helper function to decode the Payload of a transaction. Convert the co.nstant.in.cbor.model.Map
    * to a HashMap.
    */
   public Map<String, String> decodePayload(byte[] bytes) throws CborException {
     ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-    co.nstant.in.cbor.model.Map data =
-        (co.nstant.in.cbor.model.Map) new CborDecoder(bais).decodeNext();
+    co.nstant.in.cbor.model.Map data = (co.nstant.in.cbor.model.Map) new CborDecoder(bais)
+        .decodeNext();
     DataItem[] keys = data.getKeys().toArray(new DataItem[0]);
     Map<String, String> result = new HashMap<>();
     for (int i = 0; i < keys.length; i++) {
@@ -106,8 +93,8 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
    */
   public Map<String, Long> decodeState(byte[] bytes) throws CborException {
     ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-    co.nstant.in.cbor.model.Map data =
-        (co.nstant.in.cbor.model.Map) new CborDecoder(bais).decodeNext();
+    co.nstant.in.cbor.model.Map data = (co.nstant.in.cbor.model.Map) new CborDecoder(bais)
+        .decodeNext();
     DataItem[] keys = data.getKeys().toArray(new DataItem[0]);
     Map<String, Long> result = new HashMap<>();
     for (int i = 0; i < keys.length; i++) {
@@ -128,14 +115,6 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
         ByteString.copyFrom(boas.toByteArray()));
   }
 
-
-
-  @Override
-  public MessageFactory getMessageFactory() {
-    return tpMesgFactory;
-  }
-
-
   @Override
   public CompletableFuture<TpProcessResponse> executeProcessRequest(TpProcessRequest processRequest,
       SawtoothState state) {
@@ -150,7 +129,7 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
     try {
       Map<String, String> updateMap;
       LOGGER.debug("Got a TpProcessRequest with {} inputs for context id {} ...",
-          processRequest.getHeader().getInputsCount(),processRequest.getContextId());
+          processRequest.getHeader().getInputsCount(), processRequest.getContextId());
       updateMap = this.decodePayload(processRequest.getPayload().toByteArray());
       // validate name
       String name = updateMap.get("Name").toString();
@@ -202,74 +181,78 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
       byte[] stateValueRep;
 
       switch (TPOperations.getByVerb(verb)) {
-        case SET:
+      case SET:
 
-          if (value < 0) {
-            throw new InvalidTransactionException("Verb is set but Value is less than 0");
-          }
+        if (value < 0) {
+          throw new InvalidTransactionException("Verb is set but Value is less than 0");
+        }
 
-          // The ByteString is cbor encoded dict/hashmap
-          possibleAddressValues = state.getState(processRequest.getContextId(),Arrays.asList(address));
-          stateValueRep = possibleAddressValues.get(address) != null ? possibleAddressValues.get(address).toByteArray() : new byte[0];
-          stateValue = null;
-          if (stateValueRep.length > 0) {
-            stateValue = this.decodeState(stateValueRep);
-            if (stateValue.containsKey(name)) {
-              throw new InvalidTransactionException("Verb is set but Name already in state, "
-                  + "Name: " + name + " Value: " + stateValue.get(name).toString());
-            }
-          }
-
-          // 'set' passes checks so store it in the state
-          Map.Entry<String, ByteString> entry = this.encodeState(address, name, value);
-
-          List<Map.Entry<String, ByteString>> addressValues = Arrays.asList(entry);
-          addresses = state.setState(processRequest.getContextId(), addressValues);
-
-          break;
-
-        case INC:
-          Map<String, ByteString> possibleValues = state.getState(processRequest.getContextId(), Arrays.asList(address));
-          stateValueRep = possibleValues.get(address).toByteArray();
-          if (stateValueRep.length == 0) {
-            throw new InvalidTransactionException("Verb is inc but Name is not in state");
-          }
+        // The ByteString is cbor encoded dict/hashmap
+        possibleAddressValues = state.getState(processRequest.getContextId(),
+            Arrays.asList(address));
+        stateValueRep = possibleAddressValues.get(address) != null
+            ? possibleAddressValues.get(address).toByteArray() : new byte[0];
+        stateValue = null;
+        if (stateValueRep.length > 0) {
           stateValue = this.decodeState(stateValueRep);
-          if (!stateValue.containsKey(name)) {
-            throw new InvalidTransactionException("Verb is inc but Name is not in state");
+          if (stateValue.containsKey(name)) {
+            throw new InvalidTransactionException("Verb is set but Name already in state, "
+                + "Name: " + name + " Value: " + stateValue.get(name).toString());
           }
-          if (stateValue.get(name) + value > MAX_VALUE) {
-            throw new InvalidTransactionException(
-                "Inc would set Value to greater than " + Long.toString(MAX_VALUE));
-          }
-          // Increment the value in state by value
-          entry = this.encodeState(address, name, stateValue.get(name) + value);
-          addressValues = Arrays.asList(entry);
-          addresses = state.setState(processRequest.getContextId(), addressValues);
-          break;
+        }
 
-        case DEC:
-          Map<String, ByteString> possibleAddressResult = state.getState(processRequest.getContextId(), Arrays.asList(address));
-          stateValueRep = possibleAddressResult.get(address).toByteArray();
+        // 'set' passes checks so store it in the state
+        Map.Entry<String, ByteString> entry = this.encodeState(address, name, value);
 
-          if (stateValueRep.length == 0) {
-            throw new InvalidTransactionException("Verb is dec but Name is not in state");
-          }
-          stateValue = this.decodeState(stateValueRep);
-          if (!stateValue.containsKey(name)) {
-            throw new InvalidTransactionException("Verb is dec but Name is not in state");
-          }
-          if (stateValue.get(name) - value < MIN_VALUE) {
-            throw new InvalidTransactionException(
-                "Dec would set Value to less than " + Long.toString(MIN_VALUE));
-          }
+        List<Map.Entry<String, ByteString>> addressValues = Arrays.asList(entry);
+        addresses = state.setState(processRequest.getContextId(), addressValues);
 
-          // Decrement the value in state by value
-          entry = this.encodeState(address, name, stateValue.get(name) - value);
+        break;
 
-          addressValues = Arrays.asList(entry);
-          addresses = state.setState(processRequest.getContextId(), addressValues);
-          break;
+      case INC:
+        Map<String, ByteString> possibleValues = state.getState(processRequest.getContextId(),
+            Arrays.asList(address));
+        stateValueRep = possibleValues.get(address).toByteArray();
+        if (stateValueRep.length == 0) {
+          throw new InvalidTransactionException("Verb is inc but Name is not in state");
+        }
+        stateValue = this.decodeState(stateValueRep);
+        if (!stateValue.containsKey(name)) {
+          throw new InvalidTransactionException("Verb is inc but Name is not in state");
+        }
+        if (stateValue.get(name) + value > MAX_VALUE) {
+          throw new InvalidTransactionException(
+              "Inc would set Value to greater than " + Long.toString(MAX_VALUE));
+        }
+        // Increment the value in state by value
+        entry = this.encodeState(address, name, stateValue.get(name) + value);
+        addressValues = Arrays.asList(entry);
+        addresses = state.setState(processRequest.getContextId(), addressValues);
+        break;
+
+      case DEC:
+        Map<String, ByteString> possibleAddressResult = state
+            .getState(processRequest.getContextId(), Arrays.asList(address));
+        stateValueRep = possibleAddressResult.get(address).toByteArray();
+
+        if (stateValueRep.length == 0) {
+          throw new InvalidTransactionException("Verb is dec but Name is not in state");
+        }
+        stateValue = this.decodeState(stateValueRep);
+        if (!stateValue.containsKey(name)) {
+          throw new InvalidTransactionException("Verb is dec but Name is not in state");
+        }
+        if (stateValue.get(name) - value < MIN_VALUE) {
+          throw new InvalidTransactionException(
+              "Dec would set Value to less than " + Long.toString(MIN_VALUE));
+        }
+
+        // Decrement the value in state by value
+        entry = this.encodeState(address, name, stateValue.get(name) - value);
+
+        addressValues = Arrays.asList(entry);
+        addresses = state.setState(processRequest.getContextId(), addressValues);
+        break;
       }
 
       // if the 'set', 'inc', or 'dec' set to state didn't work
@@ -280,7 +263,7 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
       responseBulder.setStatus(Status.OK);
       responseBulder.setMessage(address + " set correctly.");
     } catch (InvalidTransactionException e) {
-      LOGGER.error("Exception {}",e);
+      LOGGER.error("Exception {}", e);
       e.printStackTrace();
       responseBulder.setStatus(Status.INVALID_TRANSACTION);
       responseBulder.setMessage(e.getMessage());
@@ -290,12 +273,12 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
       responseBulder.setMessage(e.getMessage());
 
     } catch (CborException e) {
-      LOGGER.error("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}",e);
-      LOGGER.debug("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}",e);
+      LOGGER.error("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}", e);
+      LOGGER.debug("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}", e);
       e.printStackTrace();
     } catch (InvalidProtocolBufferException e) {
-      LOGGER.error("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}",e);
-      LOGGER.debug("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}",e);
+      LOGGER.error("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}", e);
+      LOGGER.debug("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}", e);
       e.printStackTrace();
     }
 
@@ -303,9 +286,8 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
   }
 
   @Override
-  public void setMessageFactory(MessageFactory mFactory) {
-
-
+  public String generateAddress(ByteBuffer data) {
+    return FormattingUtils.hash512(data.array());
   }
 
   @Override
@@ -320,7 +302,27 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
   }
 
   @Override
-  public String generateAddress(ByteBuffer data) {
-    return FormattingUtils.hash512(data.array());
+  public MessageFactory getMessageFactory() {
+    return tpMesgFactory;
+  }
+
+  @Override
+  public Collection<String> getNameSpaces() {
+    return Arrays.asList(tpMesgFactory.getNameSpaces());
+  }
+
+  @Override
+  public String getVersion() {
+    return tpMesgFactory.getFamilyVersion();
+  }
+
+  @Override
+  public void setMessageFactory(MessageFactory mFactory) {
+
+  }
+
+  @Override
+  public String transactionFamilyName() {
+    return tpMesgFactory.getFamilyName();
   }
 }

@@ -28,7 +28,7 @@ public final class MessageBodyWriter implements javax.ws.rs.ext.MessageBodyWrite
 			MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream)
 			throws IOException, WebApplicationException {
 		((Message)t).writeTo(entityStream);
-		
+
 	}
 
 }

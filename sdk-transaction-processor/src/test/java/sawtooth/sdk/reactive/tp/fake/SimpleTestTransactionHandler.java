@@ -13,9 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sawtooth.sdk.protobuf.TpProcessRequest;
 import sawtooth.sdk.protobuf.TpProcessResponse;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
 import sawtooth.sdk.reactive.common.messaging.SawtoothAddressFactory;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
+import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
 import sawtooth.sdk.reactive.tp.processor.SawtoothState;
 import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
 

@@ -1,75 +1,41 @@
 package sawtooth.sdk.reactive.common.message.factory;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.security.InvalidParameterException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Calendar;
-import java.util.HashMap;
-import java.util.Map;
 
+import org.bitcoin.NativeSecp256k1;
 import org.bitcoinj.core.ECKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.Marker;
-import org.slf4j.MarkerFactory;
 
 import com.google.protobuf.GeneratedMessageV3;
 
-import sawtooth.sdk.reactive.common.crypto.SawtoothSigner;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 
 public abstract class AbstractMessageFactory<T extends GeneratedMessageV3> {
 
   protected static Logger LOGGER = LoggerFactory.getLogger(AbstractMessageFactory.class);
-  final String digesterAlgo;
-
-  final String familyName;
-  final String familyVersion;
-  final Marker logMarker;
-  final Map<String, String> nameSpacesMap;
-
+  protected ThreadLocal<MessageDigest> FACTORY_MESSAGEDIGESTER = new ThreadLocal<>();
   ECKey privateKey;
 
   @SuppressWarnings("unused")
   private AbstractMessageFactory() throws NoSuchAlgorithmException {
-
     privateKey = null;
-    nameSpacesMap = null;
-    familyName = null;
-    familyVersion = null;
-    digesterAlgo = null;
-    logMarker = null;
   }
 
-  public AbstractMessageFactory(String familyName, String familyVersion, ECKey privateKey,
-      String... nameSpaces) throws NoSuchAlgorithmException {
-    this(familyName, "SHA-512", familyVersion, privateKey, nameSpaces);
-  }
-
-  public AbstractMessageFactory(String familyName, String digesterAlgo, String familyVersion,
-      ECKey privateKey, String... nameSpaces) throws NoSuchAlgorithmException {
-    logMarker = MarkerFactory.getMarker(this.getClass().getName());
-    this.digesterAlgo = digesterAlgo;
-    this.familyName = familyName;
-    this.familyVersion = familyVersion;
+  public AbstractMessageFactory(ECKey privateKey) throws NoSuchAlgorithmException {
     if (privateKey == null) {
-      LOGGER.warn(logMarker, "Private Key null, creating a temporary one...");
-      this.privateKey = SawtoothSigner.generatePrivateKey(new SecureRandom(ByteBuffer
-          .allocate(Long.BYTES).putLong(Calendar.getInstance().getTimeInMillis()).array()));
-      LOGGER.warn("Created with encryption " + this.privateKey.getEncryptionType().toString()
-          + " and Key Crypter " + this.privateKey.getKeyCrypter());
-    } else {
-      this.privateKey = privateKey;
+      throw new InvalidParameterException("Null Private Key");
     }
-
-    LOGGER.debug("Public key {}.", privateKey.getPubKey());
-
-    nameSpacesMap = new HashMap<String, String>();
-    for (String eachNS : nameSpaces) {
-      nameSpacesMap.put(eachNS,
-          FormattingUtils.hash512(eachNS.getBytes(StandardCharsets.UTF_8)).substring(0, 6));
+    if (!NativeSecp256k1.secKeyVerify(privateKey.getPrivKeyBytes())) {
+      throw new InvalidParameterException(
+          "Invalid NativeSecp256k1 Private Key " + privateKey.toASN1());
     }
+    this.privateKey = privateKey;
+
+    LOGGER.trace("Private key {}.", privateKey);
+    LOGGER.trace("Public key {}.", privateKey.getPubKey());
   }
 
   @Override
@@ -77,6 +43,10 @@ public abstract class AbstractMessageFactory<T extends GeneratedMessageV3> {
     throw new CloneNotSupportedException();
   }
 
-  public abstract T create();
+  protected String generateDigestHex(byte[] toHash) {
+    FACTORY_MESSAGEDIGESTER.get().reset();
+    FACTORY_MESSAGEDIGESTER.get().update(toHash, 0, toHash.length);
+    return FormattingUtils.bytesToHex(FACTORY_MESSAGEDIGESTER.get().digest());
+  }
 
 }

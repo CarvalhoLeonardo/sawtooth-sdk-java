@@ -1,4 +1,4 @@
-package sawtooth.sdk.reactive.common.messaging;
+package sawtooth.sdk.reactive.tp.message.factory;
 
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
@@ -40,10 +40,6 @@ public class MessageFactory extends CoreMessagesFactory {
    * Our ubiquitous Logger.
    */
   private final static Logger LOGGER = LoggerFactory.getLogger(MessageFactory.class);
-  final String familyName;
-  final String familyVersion;
-
-  final Map<String, String> nameSpacesMap;
 
   private final ECKey signerPrivateKey;
   private final byte[] signerPublicKeyEncodedPointByte;
@@ -103,6 +99,10 @@ public class MessageFactory extends CoreMessagesFactory {
     reqBuilder.setSignature(createBArraySignature(reqBuilder.getHeader().toByteArray()));
 
     return reqBuilder.build();
+    final String familyName;
+    final String familyVersion;
+
+    final Map<String, String> nameSpacesMap;
   }
 
   private TpRegisterRequest createTpRegisterRequest() {
@@ -144,18 +144,6 @@ public class MessageFactory extends CoreMessagesFactory {
         .setCorrelationId(generateId()).setMessageType(MessageType.TP_EVENT_ADD_REQUEST).build();
 
     return newMessage;
-  }
-
-  public final String getFamilyName() {
-    return familyName;
-  }
-
-  public final String getFamilyVersion() {
-    return familyVersion;
-  }
-
-  public final Map<String, String> getNameSpaces() {
-    return nameSpacesMap;
   }
 
   public Message getProcessRequest(String contextId, ByteBuffer payload, List<String> inputs,

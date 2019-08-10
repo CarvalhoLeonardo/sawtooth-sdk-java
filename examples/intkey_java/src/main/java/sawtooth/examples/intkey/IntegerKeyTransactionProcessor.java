@@ -23,14 +23,14 @@ public class IntegerKeyTransactionProcessor {
 
   /**
    * the method that runs a Thread with a TransactionProcessor in it.
-   * @throws ExecutionException 
-   * @throws InterruptedException 
+   * @throws ExecutionException
+   * @throws InterruptedException
    */
   public static void main(String[] args) throws InterruptedException, ExecutionException {
 
     TransactionProcessor transactionProcessor = new DefaultTransactionProcessorImpl(args[0],args[1], Integer.parseInt(args[2]));
     transactionProcessor.init();
     transactionProcessor.addHandler(new IntegerKeyHandler());
-    
+
   }
 }

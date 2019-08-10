@@ -10,8 +10,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.TpRegisterRequest;
 import sawtooth.sdk.protobuf.TpRegisterResponse;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
 import sawtooth.sdk.reactive.common.zmq.ReactorNetworkNode;
+import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
 
 /**
  *

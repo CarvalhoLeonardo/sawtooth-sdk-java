@@ -13,15 +13,15 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.WorkQueueProcessor;
 import reactor.util.concurrent.Queues;
 import sawtooth.sdk.protobuf.Message;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
+import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
 
 /**
- * 
+ *
  * @author Leonardo T. de Carvalho
- * 
+ *
  *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
- * 
+ *
  *         The class will generate messages, a LOT of them.
  *
  */
@@ -46,7 +46,7 @@ public class MessageGenerator {
     RunFluxForFactory agent = new RunFluxForFactory(mf);
     agents.add(agent);
     localExecutor.execute(() -> {
-      agent.run(); 
+      agent.run();
     });
     LOGGER.debug("messagesFlux for " + mf.getFamilyName() + " : started");
   }
@@ -67,7 +67,7 @@ public class MessageGenerator {
   public final Flux<Message> getMessagesflux(Duration time) {
     return senderProcessor.sample(time);
   }
-  
+
   private class RunFluxForFactory implements Runnable {
     private final MessageFactory mf;
 
@@ -75,7 +75,7 @@ public class MessageGenerator {
     private RunFluxForFactory() {
       mf = null;
     }
-    
+
     public RunFluxForFactory(MessageFactory mf) {
       super();
       this.mf = mf;

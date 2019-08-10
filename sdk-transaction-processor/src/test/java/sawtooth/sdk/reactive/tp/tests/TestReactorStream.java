@@ -23,13 +23,13 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.reactive.tp.fake.FakeValidator;
 import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
-import sawtooth.sdk.reactive.tp.messaging.ReactorStream;
+import sawtooth.sdk.reactive.tp.message.flow.ReactorStream;
 import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
 
 /**
- * 
+ *
  * @author Leonardo T. de Carvalho
- * 
+ *
  *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *

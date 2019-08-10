@@ -1,7 +1,7 @@
 //@formatter:off
 /*-----------------------------------------------------------------------------
  Copyright 2016, 2017 Intel Corporation
- 
+
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -40,8 +40,8 @@ import sawtooth.sdk.protobuf.TpStateEntry;
 import sawtooth.sdk.protobuf.TpStateGetResponse;
 import sawtooth.sdk.reactive.common.exceptions.InternalError;
 import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
-import sawtooth.sdk.reactive.tp.messaging.MessagesStream;
+import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
+import sawtooth.sdk.reactive.tp.message.flow.MessagesStream;
 
 /**
  * Client state that interacts with the context manager through Stream networking.

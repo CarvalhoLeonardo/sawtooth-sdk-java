@@ -16,7 +16,7 @@
 ------------------------------------------------------------------------------*/
 // @formatter:on
 
-package sawtooth.sdk.reactive.tp.messaging;
+package sawtooth.sdk.reactive.tp.message.flow;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

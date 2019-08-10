@@ -26,15 +26,15 @@ import reactor.util.concurrent.WaitStrategy;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.TpRegisterRequest;
 import sawtooth.sdk.protobuf.TpRegisterResponse;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
+import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
 
 /**
- * 
+ *
  * @author Leonardo T. de Carvalho
- * 
+ *
  *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
- * 
+ *
  *         This class intends to mimic a validator, but sending a LOT of messages.
  *
  */
@@ -87,7 +87,7 @@ public class StressValidator implements Runnable {
 
   /**
    * This is where the Consumer for the TP is created.
-   * 
+   *
    * @param req
    * @throws InvalidProtocolBufferException
    */
@@ -115,7 +115,7 @@ public class StressValidator implements Runnable {
       case Message.MessageType.TP_REGISTER_REQUEST_VALUE:
 
         receiveRegisterRequest(socketID, TpRegisterRequest.parseFrom(request.getContent()));
-        
+
         answer = internalMF.getRegisterResponse(TpRegisterResponse.Status.OK_VALUE,
             request.getCorrelationId());
 
@@ -212,10 +212,10 @@ public class StressValidator implements Runnable {
   }
 
   /**
-   * 
+   *
    * This Consumer will feed from the Random Message Flux and send to the TP, and at the same time
    * prepare a Consumer to receive the reply.
-   * 
+   *
    * @param id - id of the Agent
    * @param tpSocketId - Socket ID from the connection of the TP
    * @return - The Consumer.
@@ -252,9 +252,9 @@ public class StressValidator implements Runnable {
 
 
   /**
-   * 
+   *
    * This consumer will await for the responses for the messages sent to the TP.
-   * 
+   *
    * @param correlationId - the correlation to expect.
    * @return
    */

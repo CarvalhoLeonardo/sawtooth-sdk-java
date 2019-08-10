@@ -1,7 +1,8 @@
 package sawtooth.sdk.reactive.tp.tests;
 
 import java.security.NoSuchAlgorithmException;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
+
+import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
 import sawtooth.sdk.reactive.tp.stress.StressValidator;
 
 public class StartStress {

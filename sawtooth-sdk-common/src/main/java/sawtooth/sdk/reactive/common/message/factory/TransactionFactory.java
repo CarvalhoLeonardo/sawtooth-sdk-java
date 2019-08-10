@@ -2,10 +2,13 @@ package sawtooth.sdk.reactive.common.message.factory;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidParameterException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Calendar;
 import java.util.List;
 
+import org.bitcoinj.core.ECKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,24 +19,56 @@ import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.TpProcessRequest;
 import sawtooth.sdk.protobuf.Transaction;
 import sawtooth.sdk.protobuf.TransactionHeader;
+import sawtooth.sdk.reactive.common.crypto.SawtoothSigner;
+import sawtooth.sdk.reactive.common.family.TransactionFamily;
 
-public class TransactionFactory {
+public class TransactionFactory extends AbstractMessageFactory<Transaction> {
 
   /**
    * Our ubiquitous Logger.
    */
   private final static Logger LOGGER = LoggerFactory.getLogger(TransactionFactory.class);
 
-  private Transaction createTransaction(ByteBuffer payload, List<String> inputs,
+  final TransactionFamily messagesTFamily;
+
+  /**
+   *
+   * @param transactFamily
+   * @param privateKey - Private key of this client (may be different from the process that will
+   * generate the bathes)
+   * @throws NoSuchAlgorithmException
+   */
+  public TransactionFactory(TransactionFamily transactFamily, ECKey privateKey)
+      throws NoSuchAlgorithmException {
+    super(privateKey);
+    if (transactFamily == null) {
+      throw new InvalidParameterException("Null Transaction Family");
+    }
+    this.messagesTFamily = transactFamily;
+
+    FACTORY_MESSAGEDIGESTER.set(MessageDigest.getInstance(transactFamily.getDigesterAlgorythm()));
+
+    LOGGER.trace("Created Message Factory for Transation Family {}, version {}.",
+        transactFamily.getFamilyName(), transactFamily.getFamilyVersion());
+
+  }
+
+  private String createHeaderSignature(TransactionHeader header) {
+    return SawtoothSigner.signHexSequence(this.privateKey, header.toByteArray());
+  }
+
+  public Transaction createTransaction(ByteBuffer payload, List<String> inputs,
       List<String> outputs, List<String> dependencies, String batcherPubKey)
       throws NoSuchAlgorithmException, InvalidProtocolBufferException {
     if (batcherPubKey == null || batcherPubKey.isEmpty()) {
       throw new InvalidProtocolBufferException("No batcher public key informed.");
     }
+    LOGGER.trace("Creating transaction for family {} with batcher public key {}... ",
+        this.messagesTFamily.getFamilyName(), batcherPubKey);
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
     transactionBuilder
         .setPayload(ByteString.copyFrom(payload.toString(), StandardCharsets.US_ASCII));
-    TransactionHeader header = createTransactionHeader(generateHASH512Hex(payload.array()), inputs,
+    TransactionHeader header = createTransactionHeader(generateDigestHex(payload.array()), inputs,
         outputs, dependencies, Boolean.TRUE, batcherPubKey);
     transactionBuilder.setHeader(header.toByteString());
     transactionBuilder.setHeaderSignature(createHeaderSignature(header));
@@ -47,7 +82,7 @@ public class TransactionFactory {
     TpProcessRequest theRequest = TpProcessRequest.parseFrom(processRequest.getContent());
     transactionBuilder.setHeader(theRequest.getHeader().toByteString());
     transactionBuilder.setPayload(theRequest.getPayload());
-    String hexFormattedDigest = generateHASH512Hex(theRequest.getPayload().toByteArray());
+    String hexFormattedDigest = generateDigestHex(theRequest.getPayload().toByteArray());
     TransactionHeader header = createTransactionHeader(hexFormattedDigest,
         theRequest.getHeader().getInputsList(), theRequest.getHeader().getOutputsList(),
         theRequest.getHeader().getDependenciesList(), Boolean.TRUE,
@@ -58,16 +93,16 @@ public class TransactionFactory {
     return transactionBuilder.build();
   }
 
-  public final TransactionHeader createTransactionHeader(String payloadSha512, List<String> inputs,
+  private final TransactionHeader createTransactionHeader(String payloadSha512, List<String> inputs,
       List<String> outputs, List<String> dependencies, boolean needsNonce, String batcherPubKey)
       throws InvalidProtocolBufferException {
     if (batcherPubKey == null || batcherPubKey.isEmpty()) {
       throw new InvalidProtocolBufferException("No batcher public key informed.");
     }
     TransactionHeader.Builder thBuilder = TransactionHeader.newBuilder();
-    thBuilder.setFamilyName(familyName);
-    thBuilder.setFamilyVersion(familyVersion);
-    thBuilder.setSignerPublicKey(getPubliceyString());
+    thBuilder.setFamilyName(this.messagesTFamily.getFamilyName());
+    thBuilder.setFamilyVersion(this.messagesTFamily.getFamilyVersion());
+    thBuilder.setSignerPublicKey(this.privateKey.getPublicKeyAsHex());
     thBuilder.setBatcherPublicKey(batcherPubKey);
     thBuilder.setPayloadSha512(payloadSha512);
 
@@ -89,4 +124,5 @@ public class TransactionFactory {
 
     return thBuilder.build();
   }
+
 }

@@ -30,7 +30,7 @@ import sawtooth.sdk.protobuf.TransactionHeader;
 import sawtooth.sdk.reactive.common.exceptions.InternalError;
 import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
 import sawtooth.sdk.reactive.common.messaging.CoreMessagesFactory;
-import sawtooth.sdk.reactive.tp.messaging.ReactorStream;
+import sawtooth.sdk.reactive.tp.message.flow.ReactorStream;
 
 public class DefaultTransactionProcessorImpl implements TransactionProcessor {
   private final class ReactiveStateImpl implements SawtoothState {

@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import sawtooth.sdk.protobuf.TpProcessRequest;
 import sawtooth.sdk.protobuf.TpProcessResponse;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
+import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
 
 public interface TransactionHandler {
 

@@ -26,7 +26,7 @@ import reactor.core.publisher.GroupedFlux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import sawtooth.sdk.protobuf.Message;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
+import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
 import sawtooth.sdk.reactive.tp.stress.MessageGenerator;
 
 @Test
@@ -54,7 +54,7 @@ public class TestFluxFunctions {
     Message received = messageReceiver.blockFirst(Duration.ofSeconds(1L));
     Assert.assertNotNull(received);
     subscript.dispose();
-    
+
   }
 
   @Test(dependsOnMethods= {"testReceiveOneMessage"})
@@ -68,57 +68,57 @@ public class TestFluxFunctions {
       LOGGER.debug("Testing " + p.getCorrelationId());
       return Mono.just(p.getCorrelationId().contains("a"));
     }).blockFirst(Duration.ofSeconds(2));
-    
-    Message receivedAnyb = messageReceiver.filter(p -> 
+
+    Message receivedAnyb = messageReceiver.filter(p ->
         p.getCorrelationId().contains("b"))
       .blockFirst(Duration.ofSeconds(2));
-    
+
 
     Assert.assertNotNull(receivedAnya);
     Assert.assertTrue(receivedAnya.getCorrelationId().contains("a"));
     Assert.assertNotNull(receivedAnyb);
     Assert.assertTrue(receivedAnyb.getCorrelationId().contains("b"));
   }
-  
+
   @Test(dependsOnMethods= {"testReceiveOneMessage"})
   public void testFilterUnorderedMessages() throws InvalidProtocolBufferException{
-    List<Message> messagesToTest = new ArrayList<>(); 
+    List<Message> messagesToTest = new ArrayList<>();
     messageGenerator
       .getMessagesflux(10L)
       .subscribe(messagesToTest::add);
     Message expectedMessage = myMF.getPingRequest(null);
-    String expectedCID = expectedMessage.getCorrelationId(); 
+    String expectedCID = expectedMessage.getCorrelationId();
     messagesToTest.add(4,expectedMessage);
     Flux<Message> messageSource = Flux.fromIterable(messagesToTest);
-    
+
     Flux<Message> messageReceiver = Flux.<Message>create(receiver -> {
       messageSource.subscribe(new TestFluxReturn(receiver));
     });
     Message receivedMessage = messageReceiver.filter(p -> p.getCorrelationId().equalsIgnoreCase(expectedCID)).blockFirst();
-    
+
 
     Assert.assertNotNull(receivedMessage);
     Assert.assertTrue(receivedMessage.getCorrelationId().equalsIgnoreCase(expectedCID));
   }
-  
+
   @Test(enabled=false)
   public void testFilterManyMessagesByGroup() throws InvalidProtocolBufferException, InterruptedException, ExecutionException{
-    
+
     CompletableFuture<Boolean> complete = new CompletableFuture<Boolean>();
     long MESSAGE_COUNTER = 100L;
     int BACKPRESSURE_REQ = 5;
-    
+
     List<Character> group1 = Arrays.asList('a','b');
     List<Character> group2 = Arrays.asList('c','d');
     List<Character> group3 = Arrays.asList('e','f');
-    
+
     List<Message> group1Messages = new ArrayList<>();
-    List<Message> group2Messages = new ArrayList<>(); 
-    List<Message> group3Messages = new ArrayList<>(); 
-    List<Message> numberedMessages = new ArrayList<>(); 
-    
-    
-    
+    List<Message> group2Messages = new ArrayList<>();
+    List<Message> group3Messages = new ArrayList<>();
+    List<Message> numberedMessages = new ArrayList<>();
+
+
+
     Flux<GroupedFlux<Integer, Message>> messageSources = messageGenerator
         .getMessagesflux(MESSAGE_COUNTER)
         .delayElements(Duration.ofMillis(100L))
@@ -142,10 +142,10 @@ public class TestFluxFunctions {
             if (group3.contains(fs.getCorrelationId().charAt(0))){
               return 3;
             }
-            return 0; 
+            return 0;
           }
       });
-    
+
    messageSources
      .subscribeOn(Schedulers.parallel())
      .subscribe( cs -> {
@@ -190,38 +190,38 @@ public class TestFluxFunctions {
                   };
               }));
           }
-            
+
       });
-    
-    
+
+
     LOGGER.debug("Waiting...");
     complete.get();
     LOGGER.debug("Group 1 : " + group1Messages.size());
     LOGGER.debug("Group 2 : " + group2Messages.size());
     LOGGER.debug("Group 3 : " + group3Messages.size());
     LOGGER.debug("Group Numbers : " + numberedMessages.size());
-    
+
     assertEquals(group1Messages.size() + group2Messages.size() + group3Messages.size() + numberedMessages.size(), MESSAGE_COUNTER);
   }
-  
+
   @Test
   public void testFilterManyMessagesByFilter() throws InvalidProtocolBufferException, InterruptedException, ExecutionException{
-    
+
     CompletableFuture<Boolean> complete = new CompletableFuture<Boolean>();
     long MESSAGE_COUNTER = 100L;
     int BACKPRESSURE_REQ = 5;
-    
+
     List<Character> group1 = Arrays.asList('a','b');
     List<Character> group2 = Arrays.asList('c','d');
     List<Character> group3 = Arrays.asList('e','f');
-    
+
     List<Message> group1Messages = new ArrayList<>();
-    List<Message> group2Messages = new ArrayList<>(); 
-    List<Message> group3Messages = new ArrayList<>(); 
-    List<Message> numberedMessages = new ArrayList<>(); 
-    
-    
-    
+    List<Message> group2Messages = new ArrayList<>();
+    List<Message> group3Messages = new ArrayList<>();
+    List<Message> numberedMessages = new ArrayList<>();
+
+
+
     Flux<Message> messageSources = messageGenerator
         .getMessagesflux(MESSAGE_COUNTER)
         .delayElements(Duration.ofMillis(10L))
@@ -233,7 +233,7 @@ public class TestFluxFunctions {
           LOGGER.debug("CANCEL");
           complete.complete(Boolean.FALSE);
    });
-    
+
    messageSources
     .subscribeOn(Schedulers.parallel())
     .subscribe(
@@ -260,15 +260,15 @@ public class TestFluxFunctions {
 
           }
         }));
-    
-    
+
+
     LOGGER.debug("Waiting...");
     complete.get();
     LOGGER.debug("Group 1 : " + group1Messages.size());
     LOGGER.debug("Group 2 : " + group2Messages.size());
     LOGGER.debug("Group 3 : " + group3Messages.size());
     LOGGER.debug("Group Numbers : " + numberedMessages.size());
-    
+
     assertEquals(group1Messages.size() + group2Messages.size() + group3Messages.size() + numberedMessages.size(), MESSAGE_COUNTER);
   }
 
@@ -291,7 +291,7 @@ public class TestFluxFunctions {
 
   Function<Flux<Message>, Publisher<Message>> getNewReceiver(List<Character> patterns, List<Message> holder) {
     return new Function<Flux<Message>, Publisher<Message>>() {
-       
+
       @Override
       public Publisher<Message> apply(Flux<Message> flux) {
         LOGGER.debug("Apply for "+patterns);
@@ -300,13 +300,13 @@ public class TestFluxFunctions {
                   LOGGER.debug(patterns+" - Received.");
                   holder.add(nx);
                   flux.skip(1L);
-            } 
+            }
          });
         return flux;
       }
     };
   }
-  
+
   class SubscriberWithBackPressure<T> extends BaseSubscriber<T> {
     private final int maxRequest;
     private final Consumer<T> consumer;
@@ -316,7 +316,7 @@ public class TestFluxFunctions {
       this.maxRequest = maxRequest;
       this.consumer = consumer;
     }
-    
+
     @Override
     protected void hookOnSubscribe(Subscription subscription) {
       internalsub = subscription;

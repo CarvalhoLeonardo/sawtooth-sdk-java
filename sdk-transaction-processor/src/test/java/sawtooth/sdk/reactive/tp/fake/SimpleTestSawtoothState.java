@@ -15,12 +15,12 @@ import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
 import sawtooth.sdk.reactive.tp.processor.SawtoothState;
 
 /**
- * 
+ *
  * @author Leonardo T. de Carvalho
- * 
+ *
  *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
- * 
+ *
  *         Simple in-memory implementation of a sawtooth ledger state.
  *
  */
