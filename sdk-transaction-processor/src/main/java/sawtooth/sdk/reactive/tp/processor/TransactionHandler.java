@@ -2,10 +2,25 @@ package sawtooth.sdk.reactive.tp.processor;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+
 import sawtooth.sdk.protobuf.TpProcessRequest;
 import sawtooth.sdk.protobuf.TpProcessResponse;
-import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
+import sawtooth.sdk.reactive.common.family.TransactionFamily;
+import sawtooth.sdk.reactive.common.message.factory.BatchFactory;
+import sawtooth.sdk.reactive.common.message.factory.TransactionFactory;
+import sawtooth.sdk.reactive.tp.message.factory.CoreMessagesFactory;
+import sawtooth.sdk.reactive.tp.message.factory.FamilyRegistryMessageFactory;
 
+/**
+ *
+ * @author Leonardo T. de Carvalho
+ *
+ * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ *
+ * To handle the Transactions, the implementing class needs to work all the messages
+ *
+ */
 public interface TransactionHandler {
 
   static final int MESSAGE_SIZE_DELIMITER = 64;
@@ -20,22 +35,38 @@ public interface TransactionHandler {
   public CompletableFuture<TpProcessResponse> executeProcessRequest(TpProcessRequest processRequest,
       SawtoothState state);
 
-  public MessageFactory getMessageFactory();
+  /**
+   *
+   * @return the Batch factory to talk do the validator/processor for this family
+   */
+  public BatchFactory getBatchFactory();
+
+  /**
+   *
+   * @return CoreMessagesFactory to this instance.
+   */
+  public CoreMessagesFactory getCoreMessageFactory();
+
+  /**
+   *
+   * @return the registration messages to talk do the validator/processor for this family
+   */
+  public FamilyRegistryMessageFactory getFamilyRegistryMessageFactory();
 
   public Collection<String> getNameSpaces();
 
-  public String getVersion();
-
-  public void setContextId(byte[] externalContextID);
+  /**
+   *
+   * @return the transaction factory to talk do the validator/processor for this family
+   */
+  public TransactionFactory getTransactionFactory();
 
   /**
-   * Set the message factory to use in this Handler. It will manage the semantics of the generated
-   * and received messages.
    *
-   * @param mFactory - the *INITIALIZED* Message Factory
+   * @return the definition fo the family this handler works with
    */
-  public void setMessageFactory(MessageFactory mFactory);
+  public TransactionFamily getTransactionFamily();
 
-  public String transactionFamilyName();
+  public void setContextId(byte[] externalContextID);
 
 }

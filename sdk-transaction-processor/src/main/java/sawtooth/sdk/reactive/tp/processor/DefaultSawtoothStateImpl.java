@@ -27,20 +27,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import sawtooth.sdk.protobuf.Event;
+
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
-import sawtooth.sdk.protobuf.TpEventAddResponse;
 import sawtooth.sdk.protobuf.TpStateEntry;
 import sawtooth.sdk.protobuf.TpStateGetResponse;
 import sawtooth.sdk.reactive.common.exceptions.InternalError;
 import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
-import sawtooth.sdk.reactive.tp.message.factory.MessageFactory;
+import sawtooth.sdk.reactive.tp.message.factory.CoreMessagesFactory;
 import sawtooth.sdk.reactive.tp.message.flow.MessagesStream;
 
 /**
@@ -48,13 +48,22 @@ import sawtooth.sdk.reactive.tp.message.flow.MessagesStream;
  */
 public class DefaultSawtoothStateImpl implements SawtoothState {
 
-  private MessagesStream stream;
-  private static final int TIME_OUT = 2;
-  MessageFactory mesgFact;
   private final static Logger LOGGER = LoggerFactory.getLogger(DefaultSawtoothStateImpl.class);
+  private static final int TIME_OUT = 2;
+  CoreMessagesFactory mesgFact;
+  private MessagesStream stream;
 
   public DefaultSawtoothStateImpl(MessagesStream stream) {
     this.stream = stream;
+  }
+
+  private Message getRemoteMessageResponse(Message mesg)
+      throws InterruptedException, ExecutionException, TimeoutException {
+
+    stream.send(mesg).get();
+    Future<Message> future = stream.receive(mesg.getCorrelationId());
+
+    return future.get(TIME_OUT, TimeUnit.SECONDS);
   }
 
   /**
@@ -65,6 +74,7 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
    * @throws InternalError something went wrong processing transaction
    * @throws InvalidProtocolBufferException
    */
+  @Override
   public Map<String, ByteString> getState(String contextID, List<String> addresses)
       throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
 
@@ -104,13 +114,15 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
    * @return addressesThatWereSet, A collection of address Strings that were set
    * @throws InternalError something went wrong processing transaction
    */
-  public Collection<String> setState(String contextID, List<Map.Entry<String, ByteString>> addressValuePairs)
+  @Override
+  public Collection<String> setState(String contextID,
+      List<Map.Entry<String, ByteString>> addressValuePairs)
       throws InternalError, InvalidTransactionException {
 
     Message setResponse;
     try {
-      setResponse =
-          getRemoteMessageResponse(mesgFact.getSetStateRequest(contextID, addressValuePairs));
+      setResponse = getRemoteMessageResponse(
+          mesgFact.getSetStateRequest(contextID, addressValuePairs));
     } catch (Exception iee) {
       throw new InternalError(iee.toString());
     }
@@ -126,66 +138,5 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
 
     return addressesThatWereSet;
   }
-
-  @Override
-  public ByteString AddEvent(String contextID, String eventType, Map<String, String> attributes, ByteString extraData)
-      throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
-
-    final Event.Attribute.Builder attBuilder = Event.Attribute.newBuilder();
-
-    Message setResponse = null;
-    try {
-      setResponse = getRemoteMessageResponse(mesgFact.getEventAddRequest(contextID, eventType,
-          attributes.entrySet().stream().map(es -> {
-            return attBuilder.setKey(es.getKey()).setValue(es.getValue()).build();
-          }).collect(Collectors.toList()), extraData));
-    } catch (InterruptedException | ExecutionException | TimeoutException e) {
-      e.printStackTrace();
-    }
-
-    ByteString response = null;
-
-    if (setResponse != null) {
-      if (!setResponse.getMessageType().equals(MessageType.TP_EVENT_ADD_RESPONSE)) {
-        LOGGER.info("Not a response , got {} instead.", setResponse.getMessageType().name());
-      }
-      TpEventAddResponse responsePayload = mesgFact.createTpEventAddResponse(setResponse);
-
-      switch (responsePayload.getStatus()) {
-        case ERROR:
-          LOGGER.error(responsePayload.toString());
-          throw new InvalidTransactionException(
-              "Error received from the Validator for message with id "
-                  + setResponse.getCorrelationId());
-        case STATUS_UNSET:
-          LOGGER.error(responsePayload.toString());
-          throw new InvalidTransactionException(
-              "Status UNSET for message with id " + setResponse.getCorrelationId());
-        case UNRECOGNIZED:
-          LOGGER.error(responsePayload.toString());
-          throw new InvalidTransactionException("Event Type " + eventType
-              + " UNRECOGNIZED for message with id " + setResponse.getCorrelationId());
-        case OK:
-        default:
-          response = responsePayload.toByteString();
-          break;
-
-      }
-    } else {
-      throw new InternalError("State Error, no result found for set request !");
-    }
-
-    return response;
-  }
-
-  private Message getRemoteMessageResponse(Message mesg)
-      throws InterruptedException, ExecutionException, TimeoutException {
-
-    stream.send(mesg).get();
-    Future<Message> future = stream.receive(mesg.getCorrelationId());
-
-    return future.get(TIME_OUT, TimeUnit.SECONDS);
-  }
-
 
 }

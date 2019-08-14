@@ -1,4 +1,4 @@
-package sawtooth.sdk.reactive.common.zmq;
+package sawtooth.sdk.reactive.tp.transport.zmq;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -23,7 +24,7 @@ import sawtooth.sdk.protobuf.BatchList;
 import sawtooth.sdk.protobuf.ClientBatchStatusResponse;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
-import sawtooth.sdk.reactive.common.utils.FormattingUtils;
+import sawtooth.sdk.protobuf.Transaction;
 import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
 import sawtooth.sdk.reactive.tp.processor.DefaultTransactionProcessorImpl;
 
@@ -117,8 +118,9 @@ public class TestExternalValidator extends BaseTest {
     tpUnderTest.addHandler(testTH);
     Assert.assertFalse(tpUnderTest.listRegisteredHandlers().isEmpty());
     Assert.assertEquals(tpUnderTest.listRegisteredHandlers().size(), 1);
-    Assert.assertEquals(tpUnderTest.listRegisteredHandlers().get(0).getVersion(),
-        testTH.getVersion());
+    Assert.assertEquals(
+        tpUnderTest.listRegisteredHandlers().get(0).getTransactionFamily().getFamilyVersion(),
+        testTH.getTransactionFamily().getFamilyVersion());
   }
 
   /**
@@ -202,16 +204,15 @@ public class TestExternalValidator extends BaseTest {
       NoSuchAlgorithmException, InvalidProtocolBufferException {
     ByteBuffer lameData = ByteBuffer
         .wrap(("THIS IS A LAME PAYLOAD [" + UUID.randomUUID().toString() + "]").getBytes());
-    List<String> lameAddress = Arrays
-        .asList(testTH.generateAddress(testTH.getNameSpaces().iterator().next(), "aaaaaaaaaaaa"));
+    List<String> lameAddress = Arrays.asList(testTH.getTransactionFamily()
+        .generateAddress(testTH.getNameSpaces().iterator().next(), "aaaaaaaaaaaa"));
     String correlationID = UUID.randomUUID().toString();
 
-    Message lameProcessRequest = testTH.getMessageFactory().getProcessRequest(
-        FormattingUtils.bytesToHex(testTH.getExternalContextID()), lameData, lameAddress,
-        lameAddress, null, testTH.getMessageFactory().getPubliceyString());
+    Transaction lameProcessRequest = testTH.getTransactionFactory().createTransaction(lameData,
+        lameAddress, lameAddress, Collections.emptyList(), null);
 
-    Batch lameBatchRequest = testTH.getMessageFactory()
-        .createBatch(Arrays.asList(lameProcessRequest), true);
+    Batch lameBatchRequest = testTH.getBatchFactory().createBatch(Arrays.asList(lameProcessRequest),
+        true);
 
     /*
      * Yeah, you need to send a BatchList, NOT a Batch here...

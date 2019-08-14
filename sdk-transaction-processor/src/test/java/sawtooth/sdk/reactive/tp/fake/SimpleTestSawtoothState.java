@@ -8,8 +8,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+
 import sawtooth.sdk.reactive.common.exceptions.InternalError;
 import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
 import sawtooth.sdk.reactive.tp.processor.SawtoothState;
@@ -18,16 +19,15 @@ import sawtooth.sdk.reactive.tp.processor.SawtoothState;
  *
  * @author Leonardo T. de Carvalho
  *
- *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
- *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
- *         Simple in-memory implementation of a sawtooth ledger state.
+ * Simple in-memory implementation of a sawtooth ledger state.
  *
  */
 public class SimpleTestSawtoothState implements SawtoothState {
 
-  private final ConcurrentHashMap<String, ByteString> verySimpleStateHolder =
-      new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, ByteString> verySimpleStateHolder = new ConcurrentHashMap<>();
 
   @Override
   public Map<String, ByteString> getState(String contextID, List<String> addresses) {
@@ -43,7 +43,8 @@ public class SimpleTestSawtoothState implements SawtoothState {
   }
 
   @Override
-  public Collection<String> setState(String contextID,List<Entry<String, ByteString>> addressValuePairs)
+  public Collection<String> setState(String contextID,
+      List<Entry<String, ByteString>> addressValuePairs)
       throws InternalError, InvalidTransactionException {
     if (addressValuePairs != null && !addressValuePairs.isEmpty()) {
       return addressValuePairs.stream().map(eo -> {
@@ -53,11 +54,4 @@ public class SimpleTestSawtoothState implements SawtoothState {
     }
     return Collections.emptyList();
   }
-
-  @Override
-  public ByteString AddEvent(String contextID,String eventType, Map<String, String> attributes, ByteString extraData)
-      throws InternalError, InvalidTransactionException, InvalidProtocolBufferException {
-    throw new InternalError("Not Implemented");
-  }
-
 }

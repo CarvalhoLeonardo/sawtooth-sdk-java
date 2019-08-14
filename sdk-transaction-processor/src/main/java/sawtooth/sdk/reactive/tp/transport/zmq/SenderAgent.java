@@ -1,4 +1,4 @@
-package sawtooth.sdk.reactive.common.zmq;
+package sawtooth.sdk.reactive.tp.transport.zmq;
 
 import java.util.Map;
 import java.util.function.Consumer;

@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import sawtooth.sdk.protobuf.Message;
-import sawtooth.sdk.reactive.common.zmq.ReactorNetworkNode;
+import sawtooth.sdk.reactive.tp.transport.zmq.ReactorNetworkNode;
 
 public class ReactorStream extends MessagesStream implements Runnable {
 

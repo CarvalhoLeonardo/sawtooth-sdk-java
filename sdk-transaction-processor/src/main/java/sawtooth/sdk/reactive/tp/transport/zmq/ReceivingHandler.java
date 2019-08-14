@@ -1,4 +1,4 @@
-package sawtooth.sdk.reactive.common.zmq;
+package sawtooth.sdk.reactive.tp.transport.zmq;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
