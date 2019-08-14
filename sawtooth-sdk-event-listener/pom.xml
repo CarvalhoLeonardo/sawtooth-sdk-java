@@ -43,7 +43,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>sawtooth-sdk</groupId>
-			<artifactId>sdk-common</artifactId>
+			<artifactId>sdk-transaction-processor</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

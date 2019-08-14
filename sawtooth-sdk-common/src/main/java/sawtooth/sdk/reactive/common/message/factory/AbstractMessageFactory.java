@@ -3,6 +3,7 @@ package sawtooth.sdk.reactive.common.message.factory;
 import java.security.InvalidParameterException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.UUID;
 
 import org.bitcoin.NativeSecp256k1;
 import org.bitcoinj.core.ECKey;
@@ -17,10 +18,9 @@ public abstract class AbstractMessageFactory<T extends GeneratedMessageV3> {
 
   protected static Logger LOGGER = LoggerFactory.getLogger(AbstractMessageFactory.class);
   protected ThreadLocal<MessageDigest> FACTORY_MESSAGEDIGESTER = new ThreadLocal<>();
-  ECKey privateKey;
+  protected ECKey privateKey;
 
-  @SuppressWarnings("unused")
-  private AbstractMessageFactory() throws NoSuchAlgorithmException {
+  protected AbstractMessageFactory() throws NoSuchAlgorithmException {
     privateKey = null;
   }
 
@@ -47,6 +47,19 @@ public abstract class AbstractMessageFactory<T extends GeneratedMessageV3> {
     FACTORY_MESSAGEDIGESTER.get().reset();
     FACTORY_MESSAGEDIGESTER.get().update(toHash, 0, toHash.length);
     return FormattingUtils.bytesToHex(FACTORY_MESSAGEDIGESTER.get().digest());
+  }
+
+  /**
+   * generate a random String using the sha-512 algorithm, to correlate sent messages with futures
+   *
+   * Being random, we dont need to reset() the digester
+   *
+   * @return a random String
+   */
+  protected String generateId() {
+    return FormattingUtils
+        .bytesToHex(FACTORY_MESSAGEDIGESTER.get().digest(UUID.randomUUID().toString().getBytes()))
+        .substring(0, 22);
   }
 
 }
