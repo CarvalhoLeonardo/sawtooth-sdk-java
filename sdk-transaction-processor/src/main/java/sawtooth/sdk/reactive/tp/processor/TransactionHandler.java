@@ -3,6 +3,8 @@ package sawtooth.sdk.reactive.tp.processor;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
+import org.bitcoinj.core.ECKey;
+
 import sawtooth.sdk.protobuf.TpProcessRequest;
 import sawtooth.sdk.protobuf.TpProcessResponse;
 import sawtooth.sdk.reactive.common.family.TransactionFamily;
@@ -32,12 +34,13 @@ public interface TransactionHandler {
    * @param state
    * @return Completable Future Result of the execution
    */
-  public CompletableFuture<TpProcessResponse> executeProcessRequest(TpProcessRequest processRequest,
+  public CompletableFuture<TpProcessResponse> apply(TpProcessRequest processRequest,
       SawtoothState state);
 
   /**
    *
-   * @return the Batch factory to talk do the validator/processor for this family
+   * @return the Batch factory to that assembles the batches to submit to the validator/processor
+   * for this family
    */
   public BatchFactory getBatchFactory();
 
@@ -57,7 +60,8 @@ public interface TransactionHandler {
 
   /**
    *
-   * @return the transaction factory to talk do the validator/processor for this family
+   * @return the transaction factory to assembles the Transactions to submit to the
+   * validator/processor for this family
    */
   public TransactionFactory getTransactionFactory();
 
@@ -66,6 +70,12 @@ public interface TransactionHandler {
    * @return the definition fo the family this handler works with
    */
   public TransactionFamily getTransactionFamily();
+
+  /**
+   *
+   * @return the public key of this trnsaction handler
+   */
+  public ECKey getTransactorPubKey();
 
   public void setContextId(byte[] externalContextID);
 

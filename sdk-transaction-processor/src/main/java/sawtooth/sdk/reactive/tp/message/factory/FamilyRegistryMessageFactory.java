@@ -13,7 +13,7 @@ import sawtooth.sdk.protobuf.TpRegisterRequest;
 import sawtooth.sdk.protobuf.TpRegisterResponse;
 import sawtooth.sdk.protobuf.TpUnregisterRequest;
 import sawtooth.sdk.reactive.common.family.TransactionFamily;
-import sawtooth.sdk.reactive.common.message.factory.AbstractMessageFactory;
+import sawtooth.sdk.reactive.common.message.factory.AbstractFamilyMessagesFactory;
 
 /**
  *
@@ -27,7 +27,7 @@ import sawtooth.sdk.reactive.common.message.factory.AbstractMessageFactory;
  *
  *
  */
-public class FamilyRegistryMessageFactory extends AbstractMessageFactory<Message> {
+public class FamilyRegistryMessageFactory extends AbstractFamilyMessagesFactory<Message> {
 
   /**
    * Our ubiquitous Logger.
@@ -76,7 +76,7 @@ public class FamilyRegistryMessageFactory extends AbstractMessageFactory<Message
     return newMessage;
   }
 
-  public Message getnerateUnregisterRequest() {
+  public Message generateUnregisterRequest() {
     Message newMessage = Message.newBuilder().setContent(createTpUnregisterRequest().toByteString())
         .setCorrelationId(generateId()).setMessageType(MessageType.TP_UNREGISTER_REQUEST).build();
 

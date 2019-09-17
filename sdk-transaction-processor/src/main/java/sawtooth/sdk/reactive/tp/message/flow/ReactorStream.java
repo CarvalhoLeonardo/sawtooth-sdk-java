@@ -6,8 +6,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import reactor.core.publisher.Flux;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.reactive.tp.transport.zmq.ReactorNetworkNode;
@@ -20,7 +22,6 @@ public class ReactorStream extends MessagesStream implements Runnable {
   private int parallelismFactor = 4;
   CompletableFuture<Boolean> started = new CompletableFuture<Boolean>();
   private String url = "";
-
 
   public ReactorStream(String url, int parallelismFactor) {
     super();
@@ -35,7 +36,7 @@ public class ReactorStream extends MessagesStream implements Runnable {
 
   @Override
   public byte[] getExternalContext() {
-    return internalNode.getRemoteRouterID();
+    return internalNode.getZMQRouterID();
   }
 
   public final CompletableFuture<Boolean> getStarted() {
@@ -53,12 +54,13 @@ public class ReactorStream extends MessagesStream implements Runnable {
   }
 
   @Override
-  public Future<Message> receive(String corlID) {
+  public Future<Message> receive(final String corlID) {
     return internalNode.waitForMessage(corlID);
   }
 
   @Override
-  public Future<Message> receive(String corlID, Duration timeout) throws TimeoutException {
+  public Future<Message> receive(final String corlID, final Duration timeout)
+      throws TimeoutException {
 
     return internalNode.waitForMessage(corlID).orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
@@ -72,7 +74,7 @@ public class ReactorStream extends MessagesStream implements Runnable {
   }
 
   @Override
-  public Future<Message> send(Message payload) {
+  public Future<Message> send(final Message payload) {
     LOGGER.debug("Future<Message> Sending...");
     internalNode.sendMessage(payload);
 
@@ -81,10 +83,15 @@ public class ReactorStream extends MessagesStream implements Runnable {
   }
 
   @Override
-  public void sendBack(String correlationId, Message payload) {
+  public void sendBack(final String correlationId, final Message payload) {
     send(payload);
   }
 
+  /**
+   * This is the function to process the stream of messages
+   *
+   * @param newTF
+   */
   public void setTransformationFunction(Function<Message, Message> newTF) {
     this.internalNode.setWorkingFunction(newTF);
   }

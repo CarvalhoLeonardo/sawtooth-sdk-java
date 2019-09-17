@@ -30,6 +30,7 @@ import sawtooth.sdk.protobuf.TpStateGetRequest;
 import sawtooth.sdk.protobuf.TpStateGetResponse;
 import sawtooth.sdk.protobuf.TpStateSetRequest;
 import sawtooth.sdk.protobuf.TpStateSetResponse;
+import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 
 /**
@@ -49,7 +50,21 @@ public class CoreMessagesFactory {
    * Our ubiquitous Logger.
    */
   private final static Logger LOGGER = LoggerFactory.getLogger(CoreMessagesFactory.class);
-  MessageDigest MESSAGEDIGESTER_512 = null;
+
+  static MessageDigest MESSAGEDIGESTER_512 = null;
+
+  /**
+   * generate a random String using the sha-512 algorithm, to correlate sent messages with futures
+   *
+   * Being random, we dont need to reset() it
+   *
+   * @return a random String
+   */
+  protected static String generateId() {
+    return FormattingUtils
+        .bytesToHex(MESSAGEDIGESTER_512.digest(UUID.randomUUID().toString().getBytes()))
+        .substring(0, 22);
+  }
 
   public CoreMessagesFactory() throws NoSuchAlgorithmException {
     this("SHA-512");
@@ -93,12 +108,13 @@ public class CoreMessagesFactory {
     return reqBuilder.build();
   }
 
-  private TpStateGetRequest createTpStateGetRequest(List<String> addresses) {
+  private TpStateGetRequest createTpStateGetRequest(List<String> addresses)
+      throws InvalidTransactionException {
     Optional<String> wrongAddress = addresses.stream().filter(str -> !isValidMerkleAddress(str))
         .findFirst();
     if (wrongAddress.isPresent()) {
       LOGGER.error("Invalid Address " + wrongAddress.get());
-      return null;
+      throw new InvalidTransactionException("Invalid Address " + wrongAddress.get());
     }
 
     TpStateGetRequest.Builder reqBuilder = TpStateGetRequest.newBuilder();
@@ -153,22 +169,9 @@ public class CoreMessagesFactory {
 
   }
 
-  /**
-   * generate a random String using the sha-512 algorithm, to correlate sent messages with futures
-   *
-   * Being random, we dont need to reset() it
-   *
-   * @return a random String
-   */
-  protected String generateId() {
-    return FormattingUtils
-        .bytesToHex(MESSAGEDIGESTER_512.digest(UUID.randomUUID().toString().getBytes()))
-        .substring(0, 22);
-  }
-
-  public Message getPingRequest(ByteBuffer bbuffer) throws InvalidProtocolBufferException {
-    Message newMessage = Message.newBuilder().setContent(createPingRequest(bbuffer).toByteString())
-        .setCorrelationId(this.generateId()).setMessageType(MessageType.PING_REQUEST).build();
+  public Message getPingRequest() throws InvalidProtocolBufferException {
+    Message newMessage = Message.newBuilder().setContent(createPingRequest(null).toByteString())
+        .setCorrelationId(generateId()).setMessageType(MessageType.PING_REQUEST).build();
     return newMessage;
   }
 
@@ -188,7 +191,7 @@ public class CoreMessagesFactory {
     return newMessage;
   }
 
-  public Message getStateRequest(List<String> addresses) {
+  public Message getStateRequest(List<String> addresses) throws InvalidTransactionException {
     Message newMessage = Message.newBuilder()
         .setContent(createTpStateGetRequest(addresses).toByteString())
         .setCorrelationId(generateId()).setMessageType(MessageType.TP_STATE_GET_REQUEST).build();

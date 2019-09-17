@@ -26,9 +26,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.reactive.tp.fake.FakeValidator;
-import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
 import sawtooth.sdk.reactive.tp.message.flow.ReactorStream;
 import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
+import sawtooth.sdk.reactive.tp.simulator.SimpleTestTransactionHandler;
 
 /**
  *
@@ -37,6 +37,11 @@ import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
  * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
+ * mvn -Dtest=TestReactorStream -Dmaven.surefire.debug="-Xdebug
+ * -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000 -Xnoagent -Djava.compiler=NONE"
+ * clean test
+ *
+ *
  */
 
 @Test
@@ -44,16 +49,17 @@ public class TestReactorStream extends BaseTest {
   private static String ADDRESS = "ipc://backend.ipc";
   static Random rand = new Random(System.nanoTime());
   static TransactionHandler simplTH = new SimpleTestTransactionHandler();
-
+  private static final long waitingTimeTest = 2000;
   FakeValidator fVal;
+
   ReactorStream reactStream;
   ExecutorService tpe;
 
   @BeforeClass
   public void setUp() throws InterruptedException {
-    tpe = Executors.newWorkStealingPool(4);
-    fVal = new FakeValidator(simplTH, ADDRESS);
-    reactStream = new ReactorStream(ADDRESS, 5);
+    tpe = Executors.newFixedThreadPool(2);
+    fVal = new FakeValidator(simplTH, ADDRESS, parallelFactor);
+    reactStream = new ReactorStream(ADDRESS, parallelFactor + 2);
 
     LOGGER.debug("Preparing to start Validator...");
     Future<?> startVal = tpe.submit(() -> {
@@ -85,7 +91,7 @@ public class TestReactorStream extends BaseTest {
     List<String> allExpectedIDs = Collections.synchronizedList(new ArrayList<>());
 
     for (int i = 0; i < howMany; i++) {
-      Message toSend = simplTH.getCoreMessageFactory().getPingRequest(null);
+      Message toSend = simplTH.getCoreMessageFactory().getPingRequest();
       allToSend.add(toSend);
       allExpectedIDs.add(toSend.getCorrelationId());
       LOGGER.debug("Created request : " + toSend.getCorrelationId());
@@ -117,8 +123,7 @@ public class TestReactorStream extends BaseTest {
     CompletableFuture<?>[] stupidRules = new CompletableFuture<?>[allToReceive.size()];
     allToReceive.toArray(stupidRules);
     CompletableFuture<Void> result = CompletableFuture.allOf(stupidRules);
-    result.join();
-    result.get(2, TimeUnit.SECONDS);
+    result.get(waitingTimeTest, TimeUnit.MILLISECONDS);
 
     assertFalse(allExpectedIDs.isEmpty());
     assertFalse(allToReceive.isEmpty());

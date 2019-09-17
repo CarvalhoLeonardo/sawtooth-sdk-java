@@ -18,6 +18,7 @@
 
 package sawtooth.sdk.reactive.tp.processor;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -49,21 +50,30 @@ import sawtooth.sdk.reactive.tp.message.flow.MessagesStream;
 public class DefaultSawtoothStateImpl implements SawtoothState {
 
   private final static Logger LOGGER = LoggerFactory.getLogger(DefaultSawtoothStateImpl.class);
-  private static final int TIME_OUT = 2;
   CoreMessagesFactory mesgFact;
   private MessagesStream stream;
+  private final int TIME_OUT;
 
-  public DefaultSawtoothStateImpl(MessagesStream stream) {
-    this.stream = stream;
+  @SuppressWarnings("unused")
+  private DefaultSawtoothStateImpl() {
+    this.TIME_OUT = 0;
+    this.stream = null;
   }
 
-  private Message getRemoteMessageResponse(Message mesg)
-      throws InterruptedException, ExecutionException, TimeoutException {
-
-    stream.send(mesg).get();
-    Future<Message> future = stream.receive(mesg.getCorrelationId());
-
-    return future.get(TIME_OUT, TimeUnit.SECONDS);
+  /**
+   * Create the default instance
+   *
+   * @param stream - Messages Stream
+   * @param timeou_milisseconds - timeout in millisseconds for the async operations
+   */
+  public DefaultSawtoothStateImpl(MessagesStream stream, int timeou_milisseconds) {
+    this.TIME_OUT = timeou_milisseconds;
+    this.stream = stream;
+    try {
+      mesgFact = new CoreMessagesFactory();
+    } catch (NoSuchAlgorithmException e) {
+      e.printStackTrace();
+    }
   }
 
   /**
@@ -80,7 +90,7 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
 
     Message getResponse;
     try {
-      getResponse = getRemoteMessageResponse(mesgFact.getStateRequest(addresses));
+      getResponse = sendRemoteMessageGetResponse(mesgFact.getStateRequest(addresses));
     } catch (Exception iee) {
       throw new InternalError(iee.toString());
     }
@@ -100,11 +110,28 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
       }
     }
     if (results.isEmpty()) {
-      throw new InternalError(
+      throw new InvalidTransactionException(
           "State Error, no result found for get request:" + addresses.toString());
     }
 
     return results;
+  }
+
+  private Message sendRemoteMessageGetResponse(Message mesg)
+      throws InterruptedException, ExecutionException, TimeoutException {
+
+    Future<Message> sent = stream.send(mesg);
+    sent.get(TIME_OUT, TimeUnit.MILLISECONDS);
+
+    Future<Message> future = null;
+
+    if (sent.isDone()) {
+      future = stream.receive(mesg.getCorrelationId());
+    } else {
+
+    }
+
+    return future.get(TIME_OUT, TimeUnit.MILLISECONDS);
   }
 
   /**
@@ -121,7 +148,7 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
 
     Message setResponse;
     try {
-      setResponse = getRemoteMessageResponse(
+      setResponse = sendRemoteMessageGetResponse(
           mesgFact.getSetStateRequest(contextID, addressValuePairs));
     } catch (Exception iee) {
       throw new InternalError(iee.toString());

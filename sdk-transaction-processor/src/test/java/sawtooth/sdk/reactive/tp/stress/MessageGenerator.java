@@ -56,7 +56,7 @@ public class MessageGenerator {
         LOGGER.debug("messagesFlux for " + mf.getFamilyName() + " : starting loop...");
         while (!Thread.currentThread().isInterrupted()) {
           try {
-            pingMessage = loopmf.getPingRequest(null);
+            pingMessage = loopmf.getPingRequest();
           } catch (InvalidProtocolBufferException e) {
             e.printStackTrace();
           }

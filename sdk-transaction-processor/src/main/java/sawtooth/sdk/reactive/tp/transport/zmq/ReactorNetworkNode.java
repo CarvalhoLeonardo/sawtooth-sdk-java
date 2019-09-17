@@ -18,7 +18,6 @@ import org.zeromq.ZLoop;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.PollItem;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZMsg;
 
 import reactor.core.Disposable;
 import reactor.core.publisher.EmitterProcessor;
@@ -30,7 +29,6 @@ import reactor.util.Loggers;
 import reactor.util.concurrent.Queues;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
-import sawtooth.sdk.reactive.common.utils.FormattingUtils;
 
 /**
  *
@@ -60,6 +58,8 @@ public class ReactorNetworkNode implements Runnable {
 
   // Correlation IDs of messages being worked on
   private final Map<String, byte[]> corrIDsAtWork = new ConcurrentHashMap<String, byte[]>();
+  final int defaultTimeout = 1000;
+
   // Messages waiting responses
   private final Map<String, CompletableFuture<Message>> expectingResponses = new ConcurrentHashMap<String, CompletableFuture<Message>>();
 
@@ -84,7 +84,6 @@ public class ReactorNetworkNode implements Runnable {
   };
 
   private ReactorCoreProcessor localProcessor;
-  ZLoop looper;
 
   // Address of the frontEndSocket
   String mqMainAddress;
@@ -97,21 +96,23 @@ public class ReactorNetworkNode implements Runnable {
   // sends to EOL task processor.
   private EmitterProcessor<Message> receivingEmitter = EmitterProcessor.<Message>create();
 
-  byte[] remoteRouterID = null;
-
   // Emitter for messages we want to send - only put it in the localProcessor.getSenderProcessor().
   private EmitterProcessor<Message> senderEmitter = EmitterProcessor.<Message>create();
 
   private Boolean server = false;
 
-  private int threadCount = 4;
+  private int threadCount;
 
-  private ExecutorService tPoll = Executors.newWorkStealingPool(3);
+  /*
+   * We will always start with 3 threads : poll, proxy and shutdown monitor
+   */
+  private ExecutorService tPoll = Executors.newFixedThreadPool(3);
 
   // Emitter for processed messages - only put it in the localProcessor.getSenderProcessor().
   private EmitterProcessor<Message> transformationEmitter = EmitterProcessor.<Message>create();
   private List<Socket> workersSockets = new ArrayList<>();
   private Disposable workingFunctionSubscription = null;
+  byte[] zmqRouterID = null;
 
   public ReactorNetworkNode(String mqAddress, int parallelismFactor, String name,
       Boolean isServer) {
@@ -121,7 +122,7 @@ public class ReactorNetworkNode implements Runnable {
     this.NODE_IDENTIFICATION = name;
     this.server = isServer;
     localProcessor = new ReactorCoreProcessor(threadCount, Queues.SMALL_BUFFER_SIZE,
-        this.NODE_IDENTIFICATION);
+        this.NODE_IDENTIFICATION, defaultTimeout);
 
     senderEmitter.log().subscribeOn(Schedulers.parallel(), false)
         .subscribe(localProcessor.getSenderProcessor());
@@ -133,7 +134,8 @@ public class ReactorNetworkNode implements Runnable {
             LOGGER.debug("senderEmitter -- message type {} not to be sent - CID {}",
                 cs.getMessageType(), cs.getCorrelationId());
           } else {
-            LOGGER.debug("senderEmitter.onNext({}) ...", cs.getCorrelationId());
+            LOGGER.debug("transformationEmitter -> senderEmitter.onNext({}) ...",
+                cs.getCorrelationId());
             senderEmitter.onNext(cs);
           }
         });
@@ -148,49 +150,55 @@ public class ReactorNetworkNode implements Runnable {
     return localProcessor.getOutgoingMessages().share();
   }
 
-  public final byte[] getRemoteRouterID() {
-    return remoteRouterID;
+  public final byte[] getZMQRouterID() {
+    return zmqRouterID;
   }
 
   @Override
   public void run() {
+    frontendSocket = context.createSocket(ZMQ.ROUTER);
+    // To use ROUTER, we need or to implement https://github.com/zeromq/pyzmq/issues/974 or know
+    // the ID of the server socket...
+    frontendSocket.setLinger(0);
+    frontendSocket.setImmediate(false);
+    if (server) {
+      LOGGER.debug(NODE_IDENTIFICATION + " Server mode");
+      zmqRouterID = (this.getClass().getName() + UUID.randomUUID().toString()).getBytes();
+      frontendSocket.setIdentity(zmqRouterID);
+      frontendSocket.setProbeRouter(true);
+      if (frontendSocket.bind(mqMainAddress)) {
+        LOGGER.debug("{} Server : Bound to {} and ID {};.", NODE_IDENTIFICATION, mqMainAddress,
+            new String(frontendSocket.getIdentity()));
+      }
+    } else {
+      LOGGER.debug("{} Client mode to address {}...", NODE_IDENTIFICATION, mqMainAddress);
+      frontendSocket
+          .setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
+      frontendSocket.setProbeRouter(false);
+
+      if (frontendSocket.connect(mqMainAddress)) {
+        // wait for probe reply before sending
+        // ack.dump(System.err);
+        zmqRouterID = frontendSocket.recv();
+        while (frontendSocket.hasReceiveMore()) {
+          frontendSocket.recv();
+          // discard termination frame(s)
+        }
+        LOGGER.debug("{} - Client ZMQ Router Id : {}", NODE_IDENTIFICATION,
+            new String(zmqRouterID));
+        LOGGER.debug(NODE_IDENTIFICATION + " Client : Connected to " + new String(zmqRouterID));
+        // /ack.destroy();
+      }
+    }
 
     backEndSocket = context.createSocket(ZMQ.DEALER);
     backEndSocket.setLinger(0);
     backEndSocket.setImmediate(false);
     backEndSocket.setIdentity((NODE_IDENTIFICATION + "_Backend").getBytes());
 
-    frontendSocket = context.createSocket(ZMQ.ROUTER);
-    // To user ROUTER, we need or to implement https://github.com/zeromq/pyzmq/issues/974 or know
-    // the ID of the server socket...
-    frontendSocket.setLinger(0);
-    frontendSocket.setImmediate(false);
-    frontendSocket.setProbeRouter(true);
-    frontendSocket
-        .setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
-
-    if (server) {
-      LOGGER.debug(NODE_IDENTIFICATION + " Server mode");
-      frontendSocket
-          .setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
-      if (frontendSocket.bind(mqMainAddress)) {
-        LOGGER.debug(NODE_IDENTIFICATION + " Server : Bound to " + mqMainAddress);
-      }
-    } else {
-      LOGGER.debug("{} Client mode to address {}...", NODE_IDENTIFICATION, mqMainAddress);
-      if (frontendSocket.connect(mqMainAddress)) {
-        // wait for probe reply before sending
-        ZMsg ack = ZMsg.recvMsg(frontendSocket);
-        ack.dump(System.err);
-        remoteRouterID = ack.getFirst().getData();
-        LOGGER.debug("{} - Client : HEXA to {} -- {}", NODE_IDENTIFICATION,
-            FormattingUtils.bytesToHex(remoteRouterID), remoteRouterID);
-        LOGGER.debug(NODE_IDENTIFICATION + " Client : Connected to " + remoteRouterID);
-      }
-    }
-
-    if (backEndSocket.bind(BACK_END_ADDRESS))
+    if (backEndSocket.bind(BACK_END_ADDRESS)) {
       LOGGER.debug(NODE_IDENTIFICATION + " Backend bound to " + BACK_END_ADDRESS);
+    }
 
     ZLoop looper = new ZLoop(context);
 
@@ -203,6 +211,7 @@ public class ReactorNetworkNode implements Runnable {
       workersSockets.add(worker);
       worker.setLinger(0);
       worker.setImmediate(false);
+      worker.setProbeRouter(false);
       worker.setIdentity((this.NODE_IDENTIFICATION + "_" + n).getBytes());
       if (worker.connect(BACK_END_ADDRESS)) {
         LOGGER.debug(" - > {}_{} connected on {}", this.NODE_IDENTIFICATION, n, BACK_END_ADDRESS);
@@ -212,34 +221,21 @@ public class ReactorNetworkNode implements Runnable {
 
       ReceivingHandler mesgReceiver = new ReceivingHandler(receivingEmitter,
           this.NODE_IDENTIFICATION, n, corrIDsAtWork);
-      looper.addPoller(pi, mesgReceiver, null);
+      looper.addPoller(pi, mesgReceiver, frontendSocket);
 
       multipleSenderFlux.groups().elementAt(n - 1).doOnNext(msf -> {
-        LOGGER.debug(" - > {}_{} subscribed on Parallel Flux #{}", this.NODE_IDENTIFICATION, n,
-            msf.key());
+        LOGGER.debug(" - > {}_{} subscribed on router ID {} on Parallel Flux #{}",
+            this.NODE_IDENTIFICATION, n, new String(zmqRouterID), msf.key());
       }).block().subscribe(
-          new SenderAgent(n, worker, this.NODE_IDENTIFICATION, remoteRouterID, corrIDsAtWork));
+          new SenderAgent(n, frontendSocket, this.NODE_IDENTIFICATION, zmqRouterID, corrIDsAtWork));
 
     });
 
-    receivingEmitter.publish().autoConnect().log().subscribe(internalPlexer);
+    receivingEmitter.publish().autoConnect().subscribe(internalPlexer);
 
     frontendSocket.monitor("inproc://" + BACK_END_ADDRESS + "monitor.s", ZMQ.EVENT_DISCONNECTED);
     final ZMQ.Socket monitor = this.context.createSocket(ZMQ.PAIR);
     monitor.connect("inproc://" + BACK_END_ADDRESS + "monitor.s");
-
-    tPoll.submit(() -> {
-      while (true) {
-        // blocks until disconnect event recieved
-        ZMQ.Event event = ZMQ.Event.recv(monitor);
-        if (event.getEvent() == ZMQ.EVENT_DISCONNECTED) {
-          LOGGER.warn("Validator closed connection...");
-          expectingResponses.values().forEach(er -> {
-            er.completeExceptionally(new Throwable("Validator Disconnected."));
-          });
-        }
-      }
-    });
 
     tPoll.submit(() -> {
       LOGGER.debug(this.NODE_IDENTIFICATION + " Starting proxy... ");
@@ -252,6 +248,20 @@ public class ReactorNetworkNode implements Runnable {
       looper.start();
       LOGGER.debug(this.NODE_IDENTIFICATION + " Poll stopped.");
     });
+
+    tPoll.submit(() -> {
+      while (true) {
+        // blocks until disconnect event received
+        ZMQ.Event event = ZMQ.Event.recv(monitor);
+        if (event.getEvent() == ZMQ.EVENT_DISCONNECTED) {
+          LOGGER.warn("Validator closed connection...");
+          expectingResponses.values().forEach(er -> {
+            er.completeExceptionally(new Throwable("Validator Disconnected."));
+          });
+        }
+      }
+    });
+
   }
 
   public void sendMessage(Message toSend) {
@@ -268,7 +278,7 @@ public class ReactorNetworkNode implements Runnable {
         expectingResponses.remove(rs.getCorrelationId());
       }
     });
-    LOGGER.debug("{} - responseEmitter.onNext({})- done", NODE_IDENTIFICATION,
+    LOGGER.debug("{} - senderEmitter.onNext({})- done", NODE_IDENTIFICATION,
         toSend.getCorrelationId());
   }
 

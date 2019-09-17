@@ -1,5 +1,9 @@
 package sawtooth.sdk.reactive.tp.fake;
 
+import static sawtooth.sdk.protobuf.Message.MessageType.PING_REQUEST_VALUE;
+import static sawtooth.sdk.protobuf.Message.MessageType.PING_RESPONSE_VALUE;
+import static sawtooth.sdk.protobuf.Message.MessageType.TP_REGISTER_REQUEST_VALUE;
+
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -36,15 +40,18 @@ public class FakeValidator implements Runnable {
     @Override
     public Message apply(Message m) {
       switch (m.getMessageTypeValue()) {
-      case Message.MessageType.PING_REQUEST_VALUE:
-        LOGGER.debug("--------------------- Receiving PING_REQUEST");
+      case PING_REQUEST_VALUE:
+        LOGGER.debug("--------------------- Receiving PING_REQUEST -- CID {}",
+            m.getCorrelationId());
         m = internalTR.getCoreMessageFactory().getPingResponse(m.getCorrelationId());
         break;
-      case Message.MessageType.PING_RESPONSE_VALUE:
-        LOGGER.debug("--------------------- Receiving PING_RESPONSE");
+      case PING_RESPONSE_VALUE:
+        LOGGER.debug("--------------------- Receiving PING_RESPONSE -- CID {}",
+            m.getCorrelationId());
         break;
-      case Message.MessageType.TP_REGISTER_REQUEST_VALUE:
-        LOGGER.debug("--------------------- Receiving REGISTER_REQUEST");
+      case TP_REGISTER_REQUEST_VALUE:
+        LOGGER.debug("--------------------- Receiving REGISTER_REQUEST -- CID {}",
+            m.getCorrelationId());
         try {
           receiveRegisterRequest(TpRegisterRequest.parseFrom(m.getContent()));
         } catch (InvalidProtocolBufferException e) {
@@ -54,17 +61,23 @@ public class FakeValidator implements Runnable {
             .getRegisterResponse(TpRegisterResponse.Status.OK_VALUE, m.getCorrelationId());
         break;
       default:
+        LOGGER.debug("--------------------- Receiving not prepared for type {} -- CID {}",
+            m.getMessageType(), m.getCorrelationId());
       }
       LOGGER.debug("answering with " + m.toString());
       return m;
     }
   };
 
-  public FakeValidator(TransactionHandler source, String mqAddress) {
+  public FakeValidator(TransactionHandler source, String mqAddress, int pFactor) {
     LOGGER.debug(
         "Registering Message Factory of family " + source.getTransactionFamily().getFamilyName());
     this.internalTR = source;
-    internalNode = new ReactorNetworkNode(mqAddress, 4, "fakeValidator", true);
+    internalNode = new ReactorNetworkNode(mqAddress, pFactor, "fakeValidator", true);
+  }
+
+  public Function<Message, Message> getOriginalFunction() {
+    return transformationFunction;
   }
 
   private void receiveRegisterRequest(TpRegisterRequest req) throws InvalidProtocolBufferException {
@@ -80,6 +93,10 @@ public class FakeValidator implements Runnable {
   public void run() {
     internalNode.setWorkingFunction(transformationFunction);
     internalNode.run();
+  }
+
+  public void setNewTransformatationFunction(Function<Message, Message> newFunction) {
+    internalNode.setWorkingFunction(newFunction);
   }
 
 }

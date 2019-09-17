@@ -1,4 +1,4 @@
-package sawtooth.sdk.reactive.tp.fake;
+package sawtooth.sdk.reactive.tp.simulator;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -22,7 +22,7 @@ import sawtooth.sdk.reactive.tp.processor.SawtoothState;
  * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
- * Simple in-memory implementation of a sawtooth ledger state.
+ * Simple in-memory emulation of a sawtooth ledger state, storing values in addresses
  *
  */
 public class SimpleTestSawtoothState implements SawtoothState {

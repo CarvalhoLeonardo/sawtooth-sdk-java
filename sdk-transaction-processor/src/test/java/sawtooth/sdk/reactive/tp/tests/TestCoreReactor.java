@@ -46,7 +46,6 @@ public class TestCoreReactor extends BaseTest {
         LOGGER.debug("Receiving correlation id {}... ", value.getCorrelationId());
         this.consumer.add(value);
       }
-
     }
 
   }
@@ -64,11 +63,10 @@ public class TestCoreReactor extends BaseTest {
   }
   private EmitterProcessor<Message> emp = EmitterProcessor.<Message>create();
 
-  private int parallelFactor = 2;
   private ReactorCoreProcessor reactor1 = new ReactorCoreProcessor(parallelFactor,
-      Queues.SMALL_BUFFER_SIZE, "one");
+      Queues.SMALL_BUFFER_SIZE, "one", 1000);
   private ReactorCoreProcessor reactor2 = new ReactorCoreProcessor(parallelFactor,
-      Queues.SMALL_BUFFER_SIZE, "two");
+      Queues.SMALL_BUFFER_SIZE, "two", 1000);
 
   /**
    *
@@ -139,7 +137,7 @@ public class TestCoreReactor extends BaseTest {
 
     IntStream.range(0, 100).forEach(n -> {
       try {
-        emp.onNext(coreReactorTestFactory.getPingRequest(null));
+        emp.onNext(coreReactorTestFactory.getPingRequest());
       } catch (InvalidProtocolBufferException e) {
       }
     });
@@ -180,7 +178,7 @@ public class TestCoreReactor extends BaseTest {
           }
         });
 
-    emp.onNext(coreReactorTestFactory.getPingRequest(null));
+    emp.onNext(coreReactorTestFactory.getPingRequest());
 
     assertNotNull(answer.get());
 

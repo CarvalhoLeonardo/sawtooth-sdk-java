@@ -13,7 +13,8 @@
 	<properties>
 		<sw_validator_url>tcp://127.0.0.1:4004</sw_validator_url>
 		<processor_id>mytesttp</processor_id>
-		<processor_parallelism>2</processor_parallelism>
+		<local_only>true</local_only>
+		<processor_parallelism>4</processor_parallelism>
 	</properties>
 	<profiles>
 		<profile>

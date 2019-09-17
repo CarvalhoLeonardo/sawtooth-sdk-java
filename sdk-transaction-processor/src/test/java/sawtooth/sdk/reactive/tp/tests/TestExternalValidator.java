@@ -1,12 +1,10 @@
 package sawtooth.sdk.reactive.tp.tests;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -25,17 +23,20 @@ import sawtooth.sdk.protobuf.ClientBatchStatusResponse;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.protobuf.Transaction;
-import sawtooth.sdk.reactive.tp.fake.SimpleTestTransactionHandler;
+import sawtooth.sdk.reactive.tp.fake.FakeValidator;
 import sawtooth.sdk.reactive.tp.processor.DefaultTransactionProcessorImpl;
+import sawtooth.sdk.reactive.tp.simulator.SimpleTestTransactionHandler;
 
 @Test
 public class TestExternalValidator extends BaseTest {
+
   /**
    * A tooled TransactionProcessor override to be tested.
    */
   private class TestTransactionProcessor extends DefaultTransactionProcessorImpl {
-    public TestTransactionProcessor(String mqAddress, String tpId, int parallelismFactor) {
-      super(mqAddress, tpId, parallelismFactor);
+    public TestTransactionProcessor(String mqAddress, String tpId, int parallelismFactor,
+        int timeoutMill) {
+      super(mqAddress, tpId, parallelismFactor, timeoutMill);
     }
 
     /**
@@ -46,10 +47,11 @@ public class TestExternalValidator extends BaseTest {
      */
 
     public Future<Message> ping() {
+
       Message pingReq;
       Future<Message> pingResp = null;
       try {
-        pingReq = coreMessageFact.getPingRequest(null);
+        pingReq = coreMessageFact.getPingRequest();
         if (LOGGER.isDebugEnabled()) {
           LOGGER.debug("Pinging the Validator with {} ...", pingReq);
         }
@@ -67,7 +69,8 @@ public class TestExternalValidator extends BaseTest {
      *
      * Let's send a Message.
      *
-     * @return Future response.
+     * @return Future response.int parallelismFactor =
+     * Integer.parseInt(configData.getProperty("parallelism"));
      */
 
     public Future<Message> send(Message toSend) {
@@ -84,33 +87,41 @@ public class TestExternalValidator extends BaseTest {
 
   }
 
-  private static Properties configData = new Properties();
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestExternalValidator.class);
+
   /**
    * The TH under test.
    */
   private static final SimpleTestTransactionHandler testTH;
   static {
+
     SimpleTestTransactionHandler tmp = null;
-    try {
-      configData.load(Thread.currentThread().getContextClassLoader()
-          .getResourceAsStream("test_config.properties"));
-    } catch (IOException e1) {
-      e1.printStackTrace();
-    }
+
     tmp = new SimpleTestTransactionHandler();
+    /********************/
+    // tmp.setContextId(UUID.randomUUID().toString().getBytes());
+    /*****************/
     testTH = tmp;
   }
+  FakeValidator faveValidatorForClosedTests;
+
+  int timeout = 500;
 
   private TestTransactionProcessor tpUnderTest;
 
   @BeforeClass
   public void setUp() {
-    tpUnderTest = new TestTransactionProcessor(configData.getProperty("validator_add"),
-        configData.getProperty("tprocessor_id"),
-        Integer.parseInt(configData.getProperty("parallelism")));
+
+    tpUnderTest = new TestTransactionProcessor(testConfigData.getProperty("validator_add"),
+        testConfigData.getProperty("tprocessor_id"), parallelFactor, timeout);
     try {
+      if (testConfigData.get("localonly").toString().equalsIgnoreCase("true") || testConfigData
+          .getProperty("validator_add").toString().equalsIgnoreCase("tcp://127.0.0.1:4004")) {
+        // we will use the fake server
+        faveValidatorForClosedTests = new FakeValidator(testTH, "tcp://127.0.0.1:4004",
+            parallelFactor);
+        faveValidatorForClosedTests.run();
+      }
       tpUnderTest.init();
     } catch (InterruptedException | ExecutionException e) {
       e.printStackTrace();
@@ -121,24 +132,6 @@ public class TestExternalValidator extends BaseTest {
     Assert.assertEquals(
         tpUnderTest.listRegisteredHandlers().get(0).getTransactionFamily().getFamilyVersion(),
         testTH.getTransactionFamily().getFamilyVersion());
-  }
-
-  /**
-   * Let's send one ping.
-   *
-   * DISABLED - we don't have any motive to ping the Validator. Yet.
-   *
-   * @throws InvalidProtocolBufferException
-   * @throws InterruptedException
-   * @throws ExecutionException
-   * @throws NoSuchAlgorithmException
-   */
-  @Test(enabled = false)
-  public void testPing() throws InterruptedException, ExecutionException, NoSuchAlgorithmException {
-    Message pong = tpUnderTest.ping().get();
-    Assert.assertNotNull(pong);
-    LOGGER.debug("Got a PING_RESPONSE with CID {}", pong.getCorrelationId());
-
   }
 
   /**

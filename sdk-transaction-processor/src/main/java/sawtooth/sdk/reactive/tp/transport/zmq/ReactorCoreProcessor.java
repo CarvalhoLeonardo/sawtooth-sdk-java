@@ -1,11 +1,13 @@
 package sawtooth.sdk.reactive.tp.transport.zmq;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 
@@ -32,11 +34,11 @@ public class ReactorCoreProcessor {
 
   private class InternalThreadFactory implements ThreadFactory, Supplier<String> {
 
-    final String qName;
-    final AtomicInteger tCounter = new AtomicInteger(1);
-    final String threadPrefix;
+    final private String qName;
+    final private AtomicInteger tCounter = new AtomicInteger(1);
+    final private String threadPrefix;
 
-    public InternalThreadFactory(String threadPrefix, String queueName) {
+    InternalThreadFactory(final String threadPrefix, final String queueName) {
       super();
       this.threadPrefix = threadPrefix;
       this.qName = queueName;
@@ -48,14 +50,17 @@ public class ReactorCoreProcessor {
     }
 
     @Override
-    public Thread newThread(Runnable r) {
+    public Thread newThread(final Runnable r) {
       return new Thread(r, threadPrefix + "_" + qName + "_" + tCounter.getAndIncrement());
     }
 
   }
 
   private final static Logger LOGGER = Loggers.getLogger(ReactorCoreProcessor.class);
+  private BiConsumer<Throwable, Object> incomingErrorConsumer;
   private final ConnectableFlux<Message> incomingMessages;
+  ExecutorService internalTaskExecutorService;
+  private BiConsumer<Throwable, Object> outgoingErrorConsumer;
 
   private final ConnectableFlux<Message> outgoingMessages;
   int parallelRails;
@@ -67,27 +72,30 @@ public class ReactorCoreProcessor {
   ExecutorService receivingExecutorService;
 
   ThreadFactory receivingTF;
+
   private final WorkQueueProcessor<Message> senderProcessor;
 
   ExecutorService sendingExecutorService;
 
   ThreadFactory sendingTF;
 
-  public ReactorCoreProcessor(int parallelism, int queuesBufferSize, String identity) {
+  public ReactorCoreProcessor(final int parallelism, final int queuesBufferSize,
+      final String identity, final int timeOutTaskMillis) {
     parallelRails = parallelism;
     queuesDepth = queuesBufferSize;
     this.processorName = identity;
     receivingTF = new InternalThreadFactory(processorName, "receive");
     sendingTF = new InternalThreadFactory(processorName, "send");
 
-    receivingExecutorService = new ThreadPoolExecutor(parallelism, parallelism * 2, 1000,
-        TimeUnit.MILLISECONDS, new LinkedBlockingDeque<>(parallelism * 2), receivingTF);
-    sendingExecutorService = new ThreadPoolExecutor(parallelism, parallelism * 2, 1000,
-        TimeUnit.MILLISECONDS, new LinkedBlockingDeque<>(parallelism * 2), sendingTF);
+    receivingExecutorService = new ThreadPoolExecutor(1, parallelism, timeOutTaskMillis,
+        TimeUnit.MILLISECONDS, new LinkedBlockingDeque<>(parallelism), receivingTF);
+    sendingExecutorService = new ThreadPoolExecutor(1, parallelism, timeOutTaskMillis,
+        TimeUnit.MILLISECONDS, new LinkedBlockingDeque<>(parallelism), sendingTF);
 
-    receiverProcessor = WorkQueueProcessor.<Message>builder().bufferSize(queuesDepth)
-        .executor(receivingExecutorService).requestTaskExecutor(receivingExecutorService)
-        .share(true).build();
+    internalTaskExecutorService = Executors.newWorkStealingPool(parallelRails);
+
+    receiverProcessor = internalWQPBuilder(queuesBufferSize, receivingExecutorService,
+        internalTaskExecutorService);
 
     if (LOGGER.isTraceEnabled()) {
       receiverProcessor
@@ -97,12 +105,15 @@ public class ReactorCoreProcessor {
           .doOnSubscribe(s -> LOGGER.debug(identity + " InQueue : Got a subscription from  {}.",
               s.getClass().getSimpleName()));
     }
+    // incomingErrorConsumer = new StreamErrorProcessor(receiverProcessor.sink());
+    // HERE
 
-    receiverProcessor.publish().log();
+    receiverProcessor.publish()
+        // .onErrorContinue(incomingErrorConsumer)
+        .log();
 
-    senderProcessor = WorkQueueProcessor.<Message>builder().bufferSize(queuesDepth)
-        .executor(sendingExecutorService).requestTaskExecutor(sendingExecutorService).share(true)
-        .build();
+    senderProcessor = internalWQPBuilder(queuesBufferSize, sendingExecutorService,
+        internalTaskExecutorService);
 
     if (LOGGER.isTraceEnabled()) {
       senderProcessor
@@ -115,7 +126,9 @@ public class ReactorCoreProcessor {
 
     senderProcessor.publish().log();
 
-    incomingMessages = receiverProcessor.share().publish();
+    incomingMessages = receiverProcessor.share()
+        // .onErrorContinue(incomingErrorConsumer)
+        .publish();
 
     if (LOGGER.isTraceEnabled()) {
       incomingMessages
@@ -128,8 +141,11 @@ public class ReactorCoreProcessor {
 
     incomingMessages.subscribe();
     incomingMessages.connect();
-
-    outgoingMessages = senderProcessor.share().publish();
+    // outgoingErrorConsumer = new StreamErrorProcessor(senderProcessor.sink());
+    // HERE
+    outgoingMessages = senderProcessor
+        // .onErrorContinue(outgoingErrorConsumer)
+        .share().publish();
 
     if (LOGGER.isTraceEnabled()) {
       outgoingMessages
@@ -170,6 +186,12 @@ public class ReactorCoreProcessor {
 
   public final WorkQueueProcessor<Message> getSenderProcessor() {
     return senderProcessor;
+  }
+
+  private WorkQueueProcessor<Message> internalWQPBuilder(int queueSize, ExecutorService execServ,
+      ExecutorService taskExecutor) {
+    return WorkQueueProcessor.<Message>builder().bufferSize(queueSize).executor(execServ)
+        .requestTaskExecutor(taskExecutor).share(true).build();
   }
 
 }

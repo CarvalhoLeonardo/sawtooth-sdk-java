@@ -1,6 +1,5 @@
 package sawtooth.sdk.reactive.tp.message.factory;
 
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import com.google.protobuf.ByteString;
@@ -25,10 +24,6 @@ import sawtooth.sdk.reactive.common.message.factory.AbstractMessageFactory;
  *
  */
 public class EventMessagesFactory extends AbstractMessageFactory<Event> {
-
-  protected EventMessagesFactory() throws NoSuchAlgorithmException {
-    super();
-  }
 
   private TpEventAddRequest createTpEventAddRequest(String contextId, String eventType,
       List<Event.Attribute> attributes, ByteString data) {

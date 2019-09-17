@@ -4,11 +4,10 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -22,64 +21,29 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.TpProcessRequest;
 import sawtooth.sdk.protobuf.TpProcessResponse;
+import sawtooth.sdk.protobuf.TpProcessResponse.Status;
 import sawtooth.sdk.protobuf.TpRegisterResponse;
 import sawtooth.sdk.protobuf.TransactionHeader;
-import sawtooth.sdk.reactive.common.exceptions.InternalError;
-import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
 import sawtooth.sdk.reactive.tp.message.factory.CoreMessagesFactory;
 import sawtooth.sdk.reactive.tp.message.factory.FamilyRegistryMessageFactory;
 import sawtooth.sdk.reactive.tp.message.flow.ReactorStream;
 
 public class DefaultTransactionProcessorImpl implements TransactionProcessor {
-  private final class ReactiveStateImpl implements SawtoothState {
-
-    @Override
-    public Map<String, ByteString> getState(String contextID, List<String> addresses) {
-      Map<String, ByteString> result = null;
-      Message getStateMessage = coreMessageFact.getStateRequest(addresses);
-      try {
-        reactStream.send(getStateMessage).get();
-        Message expectedAnswer = reactStream.receive(getStateMessage.getCorrelationId()).get();
-        result = coreMessageFact.getStateResponse(expectedAnswer);
-      } catch (InterruptedException | ExecutionException e) {
-        e.printStackTrace();
-      }
-      return result;
-    }
-
-    @Override
-    public Collection<String> setState(String contextID,
-        List<Entry<String, ByteString>> addressValuePairs)
-        throws InternalError, InvalidTransactionException {
-      Message getStateMessage = coreMessageFact.getSetStateRequest(contextID, addressValuePairs);
-      List<String> result = null;
-      try {
-        reactStream.send(getStateMessage).get();
-        Message expectedAnswer = reactStream.receive(getStateMessage.getCorrelationId()).get();
-        result = coreMessageFact.parseStateSetResponse(expectedAnswer);
-      } catch (InterruptedException | ExecutionException | InvalidProtocolBufferException e) {
-        e.printStackTrace();
-      }
-      return result;
-    }
-
-  }
-
   private final static String KEY_FORMAT = "%s | %s";
+
   private final static Logger LOGGER = LoggerFactory
       .getLogger(DefaultTransactionProcessorImpl.class);
   private final String address;
+
   protected CoreMessagesFactory coreMessageFact;
   private Function<Message, Message> coreMessagesFunction = new Function<Message, Message>() {
     @Override
     public Message apply(Message mt) {
-      TransactionHeader header;
       Message result = mt;
       try {
         switch (mt.getMessageType()) {
@@ -93,62 +57,81 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
           }
           break;
         case TP_PROCESS_REQUEST:
-          TpProcessRequest theRequest = tpProcessRequestBuilder.mergeFrom(mt.getContent()).build();
-          header = theRequest.getHeader();
-          if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug(
-                "Sending Process Request with Correlation ID {} to Transaction Handler {} of version {}",
-                mt.getCorrelationId(), header.getFamilyName(), header.getFamilyVersion());
-          }
-          if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Request : {}", theRequest.toString());
-          }
-          tasksExecutor.execute(() -> {
-            if (LOGGER.isDebugEnabled()) {
-              LOGGER.debug("Parallel processing {} ...", mt.getCorrelationId());
-              LOGGER.debug("Sending to {} ...",
-                  String.format(KEY_FORMAT, header.getFamilyName(), header.getFamilyVersion()));
+
+          // This message will be "transformed" to a TP_PROCESS_RESPONSE
+
+          tasksExecutor.submit(new Callable<TpProcessResponse>() {
+
+            @Override
+            public TpProcessResponse call() throws Exception {
+              TpProcessRequest theRequest = tpProcessRequestBuilder.mergeFrom(mt.getContent())
+                  .build();
+
+              TransactionHeader header = theRequest.getHeader();
+              if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                    "Sending Process Request with Correlation ID {} to Transaction Handler {} of version {}",
+                    mt.getCorrelationId(), header.getFamilyName(), header.getFamilyVersion());
+              }
+              if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("Request : {}", theRequest.toString());
+              }
+              if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Parallel processing {} ...", mt.getCorrelationId());
+                LOGGER.debug("Sending to {} ...",
+                    String.format(KEY_FORMAT, header.getFamilyName(), header.getFamilyVersion()));
+              }
+
+              tpProcessRequestBuilder.clear();
+              CompletableFuture<TpProcessResponse> waitinResp = messagesRouter
+                  .get(String.format(KEY_FORMAT, header.getFamilyName(), header.getFamilyVersion()))
+                  .apply(theRequest, internalState);
+
+              waitinResp.thenAccept(rs -> {
+                LOGGER.debug("Computation returned {} -- {}", rs.getStatus(), rs.getMessage());
+                if (!rs.getStatus().equals(Status.OK)) {
+                  LOGGER.error("Computation failed.");
+                }
+              });
+
+              return waitinResp.get();
             }
-            // We don't consume or process the message to permit further verification down the
-            // line.
-            messagesRouter
-                .get(String.format(KEY_FORMAT, header.getFamilyName(), header.getFamilyVersion()))
-                .executeProcessRequest(theRequest, internalState).thenAccept(rs -> {
-                  LOGGER.debug("Computation returned {} -- {}", rs.getStatus(), rs.getMessage());
-                });
           });
-          tpProcessRequestBuilder.clear();
+
           break;
         case TP_PROCESS_RESPONSE:
-          if (LOGGER.isDebugEnabled()) {
-            TpProcessResponse theResponse = tpProcessResponseBuilder.mergeFrom(mt.getContent())
-                .build();
-            LOGGER.debug(
-                "Received Process Response with Correlation ID {} with status {} and message {}",
-                mt.getCorrelationId(), theResponse.getStatus(), theResponse.getMessage());
-            tpProcessResponseBuilder.clear();
-          }
+          TpProcessResponse theResponse = tpProcessResponseBuilder.mergeFrom(mt.getContent())
+              .build();
+          LOGGER.debug(
+              "Received Process Response with Correlation ID {} with status {} and message {}",
+              mt.getCorrelationId(), theResponse.getStatus(), theResponse.getMessage());
+          tpProcessResponseBuilder.clear();
+
           break;
+        case TP_STATE_GET_RESPONSE:
+        case TP_STATE_SET_RESPONSE:
+          LOGGER.debug("Received State Manipulation message Correlation ID {} ",
+              mt.getCorrelationId());
+
         case PING_RESPONSE:
         case NETWORK_ACK:
         case NETWORK_CONNECT:
         case NETWORK_DISCONNECT:
         case TP_EVENT_ADD_REQUEST:
         case TP_STATE_DELETE_RESPONSE:
-        case TP_STATE_GET_RESPONSE:
-        case TP_STATE_SET_RESPONSE:
         case TP_EVENT_ADD_RESPONSE:
         case TP_RECEIPT_ADD_DATA_RESPONSE:
         case TP_UNREGISTER_REQUEST:
         case TP_UNREGISTER_RESPONSE:
         case UNRECOGNIZED:
           if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("Received Message Type {} with Correlation ID {} ...", mt.getMessageType(),
-                mt.getCorrelationId());
+            LOGGER.debug(
+                "Ignoring Message Type {} with Correlation ID {} due to lack of dealing method...",
+                mt.getMessageType(), mt.getCorrelationId());
           }
           break;
         default:
-          LOGGER.debug("Ignoring message type {}, passing away.", mt.getMessageType());
+          LOGGER.debug("Ignoring unexpected message type {}, passing away.", mt.getMessageType());
           break;
         }
       } catch (InvalidProtocolBufferException e) {
@@ -160,12 +143,12 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
   };
 
   private final Deque<TransactionHandler> currentHandlers = new ConcurrentLinkedDeque<TransactionHandler>();
-  protected ReactiveStateImpl internalState = new ReactiveStateImpl();
+
+  protected DefaultSawtoothStateImpl internalState;
 
   private final Map<String, TransactionHandler> messagesRouter = new ConcurrentHashMap<String, TransactionHandler>();
 
-  private int pFactor = 4;
-
+  private int pFactor;
   private final String processorID;
   protected ReactorStream reactStream;
   protected FamilyRegistryMessageFactory registryMessageFact;
@@ -180,7 +163,17 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
 
   TpRegisterResponse.Builder tpRegRespBuilder = TpRegisterResponse.newBuilder();
 
-  public DefaultTransactionProcessorImpl(String mqAddress, String tpId, int parallelismFactor) {
+  /**
+   *
+   * Create the instance
+   *
+   * @param mqAddress - MQ Address
+   * @param tpId - Transaction Processor ID
+   * @param parallelismFactor - Parallelism factor for the Streams
+   * @param timeoutMilisseconds - timeout im millisseconds to the async operations
+   */
+  public DefaultTransactionProcessorImpl(String mqAddress, String tpId, int parallelismFactor,
+      int timeoutMilisseconds) {
     address = mqAddress;
     processorID = tpId;
     pFactor = parallelismFactor;
@@ -192,6 +185,7 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
     } catch (NoSuchAlgorithmException e) {
       e.printStackTrace();
     }
+    internalState = new DefaultSawtoothStateImpl(reactStream, timeoutMilisseconds);
   }
 
   @Override
@@ -208,11 +202,7 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
       LOGGER.debug("Register Response received : {}.",
           tpRegRespBuilder.mergeFrom(answer.getContent()).build());
 
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    } catch (ExecutionException e) {
-      e.printStackTrace();
-    } catch (InvalidProtocolBufferException e) {
+    } catch (InterruptedException | ExecutionException | InvalidProtocolBufferException e) {
       e.printStackTrace();
     }
     handler.setContextId(getExternalContextID());
@@ -249,19 +239,6 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
       LOGGER.debug("Signaled to stop all.");
       this.shutdown();
     }));
-    /*
-     * periodicTasks.schedule(new Callable<Message>() { Message pingResp;
-     *
-     * @Override public Message call() { tasksExecutor.execute(() -> { Message pingReq; try {
-     * pingReq = coreMessageFact.getPingRequest(null); if (LOGGER.isDebugEnabled()) {
-     * LOGGER.debug("Pinging the Validator with {} ...", pingReq); } reactStream.send(pingReq);
-     * pingResp = reactStream.receive(pingReq.getCorrelationId()).get();
-     * LOGGER.info("Pinged back the Validator with {} ...", pingResp);
-     *
-     * } catch (InvalidProtocolBufferException e) { e.printStackTrace(); } catch
-     * (InterruptedException e) { e.printStackTrace(); } catch (ExecutionException e) {
-     * e.printStackTrace(); } }); return pingResp; } }, 10, TimeUnit.SECONDS);
-     */
 
   }
 
@@ -279,7 +256,7 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
     currentHandlers.forEach(eh -> {
       LOGGER.debug("Getting unregister request for TH of family {}, version {}",
           eh.getTransactionFamily().getFamilyName(), eh.getTransactionFamily().getFamilyVersion());
-      goobByeLetters.add(eh.getFamilyRegistryMessageFactory().getnerateUnregisterRequest());
+      goobByeLetters.add(eh.getFamilyRegistryMessageFactory().generateUnregisterRequest());
     });
 
     goobByeLetters.stream().map(em -> {

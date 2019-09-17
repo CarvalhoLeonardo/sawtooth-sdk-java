@@ -58,6 +58,7 @@ public class TestFluxFunctions {
       internalsub = subscription;
       internalsub.request(maxRequest);
     }
+
   }
 
   private class TestFluxReturn implements Consumer<Message> {
@@ -74,7 +75,10 @@ public class TestFluxFunctions {
       LOGGER.debug("Consumed " + consumed.getCorrelationId());
       internalSink.next(consumed);
     }
+
   }
+
+  private static long delay = 10;
 
   private final static Logger LOGGER = LoggerFactory.getLogger(TestFluxFunctions.class);
 
@@ -89,6 +93,7 @@ public class TestFluxFunctions {
 
       @Override
       public Publisher<Message> apply(Flux<Message> flux) {
+
         LOGGER.debug("Apply for " + patterns);
         flux.doOnNext(nx -> {
           if (patterns.contains(nx.getCorrelationId().charAt(0))) {
@@ -104,6 +109,7 @@ public class TestFluxFunctions {
 
   @BeforeClass
   public void setUp() throws NoSuchAlgorithmException {
+    // Hooks.onNextDroppedFail();
     myTF = new TransactionFamily("messagetest", "0.0.0", new String[] { "messagetest" });
     cmf = new CoreMessagesFactory();
     messageGenerator = new MessageGenerator(4);
@@ -128,7 +134,7 @@ public class TestFluxFunctions {
     List<Message> numberedMessages = new ArrayList<>();
 
     Flux<Message> messageSources = messageGenerator.getMessagesflux(MESSAGE_COUNTER)
-        .delayElements(Duration.ofMillis(10L)).doOnComplete(() -> {
+        .delayElements(Duration.ofMillis(delay)).doOnComplete(() -> {
           LOGGER.debug("COMPLETE");
           complete.complete(Boolean.TRUE);
         }).doOnCancel(() -> {
@@ -145,7 +151,7 @@ public class TestFluxFunctions {
               group3Messages.add(m);
               return;
             }
-            
+
             if (group1.contains(m.getCorrelationId().charAt(0))) {
               LOGGER.debug(group1 + " - Received " + m.getCorrelationId());
               group1Messages.add(m);
@@ -193,7 +199,7 @@ public class TestFluxFunctions {
     List<Message> numberedMessages = new ArrayList<>();
 
     Flux<GroupedFlux<Integer, Message>> messageSources = messageGenerator
-        .getMessagesflux(MESSAGE_COUNTER).delayElements(Duration.ofMillis(100L))
+        .getMessagesflux(MESSAGE_COUNTER).delayElements(Duration.ofMillis(delay))
         .doOnComplete(() -> {
           LOGGER.debug("COMPLETE");
           complete.complete(Boolean.TRUE);
@@ -286,10 +292,10 @@ public class TestFluxFunctions {
     Message receivedAnya = messageReceiver.filterWhen(p -> {
       LOGGER.debug("Testing " + p.getCorrelationId());
       return Mono.just(p.getCorrelationId().contains("a"));
-    }).blockFirst(Duration.ofSeconds(2));
+    }).blockFirst(Duration.ofSeconds(1));
 
     Message receivedAnyb = messageReceiver.filter(p -> p.getCorrelationId().contains("b"))
-        .blockFirst(Duration.ofSeconds(2));
+        .blockFirst(Duration.ofSeconds(1));
 
     Assert.assertNotNull(receivedAnya);
     Assert.assertTrue(receivedAnya.getCorrelationId().contains("a"));
@@ -300,8 +306,8 @@ public class TestFluxFunctions {
   @Test(dependsOnMethods = { "testReceiveOneMessage" })
   public void testFilterUnorderedMessages() throws InvalidProtocolBufferException {
     List<Message> messagesToTest = new ArrayList<>();
-    messageGenerator.getMessagesflux(10L).subscribe(messagesToTest::add);
-    Message expectedMessage = cmf.getPingRequest(null);
+    messageGenerator.getMessagesflux(delay).subscribe(messagesToTest::add);
+    Message expectedMessage = cmf.getPingRequest();
     String expectedCID = expectedMessage.getCorrelationId();
     messagesToTest.add(4, expectedMessage);
     Flux<Message> messageSource = Flux.fromIterable(messagesToTest);

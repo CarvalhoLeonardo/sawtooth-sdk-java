@@ -2,21 +2,23 @@ package sawtooth.sdk.reactive.tp.transport.zmq;
 
 import java.util.Map;
 import java.util.function.Consumer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
+
 import sawtooth.sdk.protobuf.Message;
 
 /**
  *
  * @author Leonardo T. de Carvalho
  *
- *         <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
- *         <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
+ * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
+ * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
- *         This class will consume Messages from the external bound Flux.
+ * This class will consume Messages from the external bound Flux.
  */
 public class SenderAgent implements Consumer<Message> {
 
@@ -46,14 +48,14 @@ public class SenderAgent implements Consumer<Message> {
     ZMsg msg = new ZMsg();
     if (addressCorrelationMapping.containsKey(sawtoothMessage.getCorrelationId())) {
       // We are answering a message, we need to address it!
-      LOGGER.debug(myName + " It's a response to socket ID "
-          + addressCorrelationMapping.get(sawtoothMessage.getCorrelationId()));
+      LOGGER.debug("{} It's a response to socket ID {}", myName,
+          new String(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId())));
       msg.offer(new ZFrame(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId())));
       addressCorrelationMapping.remove(sawtoothMessage.getCorrelationId());
     } else {
       LOGGER.debug(myName + " It's a request from us.");
       if (externalSocketId != null && !(externalSocketId.length == 0)) {
-        LOGGER.debug(" External socket ID : {}.", externalSocketId);
+        LOGGER.debug(" External socket ID : {}.", new String(externalSocketId));
         /**
 @formatter:off
      msg.wrap(new ZFrame(externalSocketId)) gets the error
@@ -70,7 +72,7 @@ public class SenderAgent implements Consumer<Message> {
     }
 
     LOGGER.debug("{} sent through socket {} to route {}", myName, new String(socket.getIdentity()),
-        externalSocketId);
+        new String(externalSocketId));
     msg.offer(new ZFrame(sawtoothMessage.toByteArray()));
     if (msg.send(socket, false)) {
       LOGGER.debug(myName + " Sent " + sawtoothMessage.toString());
@@ -79,6 +81,5 @@ public class SenderAgent implements Consumer<Message> {
       LOGGER.error(myName + " couldn't sent " + sawtoothMessage.toString());
     }
   }
-
 
 }
