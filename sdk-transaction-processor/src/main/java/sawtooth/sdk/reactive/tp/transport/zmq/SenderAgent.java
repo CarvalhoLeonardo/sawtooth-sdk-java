@@ -5,7 +5,6 @@ import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
 
@@ -50,7 +49,7 @@ public class SenderAgent implements Consumer<Message> {
       // We are answering a message, we need to address it!
       LOGGER.debug("{} It's a response to socket ID {}", myName,
           new String(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId())));
-      msg.offer(new ZFrame(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId())));
+      msg.add(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId()));
       addressCorrelationMapping.remove(sawtoothMessage.getCorrelationId());
     } else {
       LOGGER.debug(myName + " It's a request from us.");
@@ -67,13 +66,21 @@ public class SenderAgent implements Consumer<Message> {
         ValueError: too many values to unpack (expected 2)
 @formatter:on
          */
-        msg.offer(new ZFrame(externalSocketId));
+        msg.add(externalSocketId);
+      } else {
+        LOGGER.error("----------------- MESSAGE NOT EXPECTED -------------------------------- ");
       }
     }
 
     LOGGER.debug("{} sent through socket {} to route {}", myName, new String(socket.getIdentity()),
         new String(externalSocketId));
-    msg.offer(new ZFrame(sawtoothMessage.toByteArray()));
+
+    if (msg.add(sawtoothMessage.toByteArray())) {
+      LOGGER.debug("Payload prepared to send to {} ", new String(externalSocketId));
+    } else {
+      LOGGER.error("Payload NOT prepared to send to {} ", new String(externalSocketId));
+    }
+
     if (msg.send(socket, false)) {
       LOGGER.debug(myName + " Sent " + sawtoothMessage.toString());
       msg.dump(System.err);

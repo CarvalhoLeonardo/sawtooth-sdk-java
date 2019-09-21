@@ -101,10 +101,8 @@ public class TestReactorStream extends BaseTest {
       LOGGER.debug("Sending request : " + em.getCorrelationId());
       reactStream.sendBack(em.getCorrelationId(), em);
       try {
-        CompletableFuture<Message> awaitingOne;
-
-        awaitingOne = (CompletableFuture<Message>) reactStream.receive(em.getCorrelationId(),
-            Duration.ofSeconds(1L));
+        CompletableFuture<Message> awaitingOne = (CompletableFuture<Message>) reactStream
+            .receive(em.getCorrelationId(), Duration.ofMillis(waitingTimeTest));
         awaitingOne.whenComplete((rs, ex) -> {
           if (ex != null) {
             LOGGER.debug("::==========>> FAILURE {}.", ex.getMessage());
@@ -120,9 +118,8 @@ public class TestReactorStream extends BaseTest {
       return true;
     }).allMatch(al -> true);
 
-    CompletableFuture<?>[] stupidRules = new CompletableFuture<?>[allToReceive.size()];
-    allToReceive.toArray(stupidRules);
-    CompletableFuture<Void> result = CompletableFuture.allOf(stupidRules);
+    CompletableFuture<Void> result = CompletableFuture
+        .allOf(allToReceive.toArray(new CompletableFuture<?>[allToReceive.size()]));
     result.get(waitingTimeTest, TimeUnit.MILLISECONDS);
 
     assertFalse(allExpectedIDs.isEmpty());

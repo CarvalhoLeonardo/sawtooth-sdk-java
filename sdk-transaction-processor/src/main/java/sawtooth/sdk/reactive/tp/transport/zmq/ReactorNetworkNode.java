@@ -13,6 +13,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
+import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZLoop;
 import org.zeromq.ZMQ;
@@ -156,7 +157,7 @@ public class ReactorNetworkNode implements Runnable {
 
   @Override
   public void run() {
-    frontendSocket = context.createSocket(ZMQ.ROUTER);
+    frontendSocket = context.createSocket(SocketType.ROUTER);
     // To use ROUTER, we need or to implement https://github.com/zeromq/pyzmq/issues/974 or know
     // the ID of the server socket...
     frontendSocket.setLinger(0);
@@ -191,7 +192,7 @@ public class ReactorNetworkNode implements Runnable {
       }
     }
 
-    backEndSocket = context.createSocket(ZMQ.DEALER);
+    backEndSocket = context.createSocket(SocketType.DEALER);
     backEndSocket.setLinger(0);
     backEndSocket.setImmediate(false);
     backEndSocket.setIdentity((NODE_IDENTIFICATION + "_Backend").getBytes());
@@ -207,7 +208,7 @@ public class ReactorNetworkNode implements Runnable {
 
     IntStream.range(1, threadCount + 1).forEach(n -> {
       LOGGER.debug(NODE_IDENTIFICATION + " - Creating individual Worker " + n);
-      Socket worker = context.createSocket(ZMQ.DEALER);
+      Socket worker = context.createSocket(SocketType.DEALER);
       workersSockets.add(worker);
       worker.setLinger(0);
       worker.setImmediate(false);
@@ -227,14 +228,14 @@ public class ReactorNetworkNode implements Runnable {
         LOGGER.debug(" - > {}_{} subscribed on router ID {} on Parallel Flux #{}",
             this.NODE_IDENTIFICATION, n, new String(zmqRouterID), msf.key());
       }).block().subscribe(
-          new SenderAgent(n, frontendSocket, this.NODE_IDENTIFICATION, zmqRouterID, corrIDsAtWork));
+          new SenderAgent(n, worker, this.NODE_IDENTIFICATION, zmqRouterID, corrIDsAtWork));
 
     });
 
     receivingEmitter.publish().autoConnect().subscribe(internalPlexer);
 
     frontendSocket.monitor("inproc://" + BACK_END_ADDRESS + "monitor.s", ZMQ.EVENT_DISCONNECTED);
-    final ZMQ.Socket monitor = this.context.createSocket(ZMQ.PAIR);
+    final ZMQ.Socket monitor = context.createSocket(SocketType.PAIR);
     monitor.connect("inproc://" + BACK_END_ADDRESS + "monitor.s");
 
     tPoll.submit(() -> {
@@ -261,6 +262,8 @@ public class ReactorNetworkNode implements Runnable {
         }
       }
     });
+
+    LOGGER.info("Reactor Network Node {} successfully started.", this.NODE_IDENTIFICATION);
 
   }
 

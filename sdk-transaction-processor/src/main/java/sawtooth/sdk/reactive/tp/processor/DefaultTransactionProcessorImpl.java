@@ -280,9 +280,8 @@ public class DefaultTransactionProcessorImpl implements TransactionProcessor {
       return true;
     }).allMatch(al -> true);
 
-    CompletableFuture<?>[] stupidRules = new CompletableFuture<?>[allToReceive.size()];
-    allToReceive.toArray(stupidRules);
-    CompletableFuture<Void> result = CompletableFuture.allOf(stupidRules);
+    CompletableFuture<Void> result = CompletableFuture
+        .allOf(allToReceive.toArray(new CompletableFuture<?>[allToReceive.size()]));
     result.join();
     try {
       result.get(10, TimeUnit.SECONDS);
