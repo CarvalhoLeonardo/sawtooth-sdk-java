@@ -3,9 +3,8 @@ package sawtooth.sdk.reactive.common.utils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.function.Supplier;
-
-import javax.xml.bind.DatatypeConverter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +30,6 @@ public class FormattingUtils {
             LOGGER.error("No SHA 512 provider found... Problems ahead.");
             e.printStackTrace();
           }
-
           return null;
         }
       });
@@ -58,7 +56,7 @@ public class FormattingUtils {
    * @return result a lowercase Hex representation from a byte[]
    */
   public static String bytesToHexBase64(final byte[] bytes) {
-    return DatatypeConverter.printBase64Binary(bytes);
+    return Base64.getEncoder().encodeToString(bytes);
   }
 
   /**
@@ -81,7 +79,7 @@ public class FormattingUtils {
    * @return Bytes of the representation
    */
   public static byte[] hexStringBase64ToByteArray(final String s) {
-    return DatatypeConverter.parseBase64Binary(s);
+    return Base64.getDecoder().decode(s);
   }
 
   /**

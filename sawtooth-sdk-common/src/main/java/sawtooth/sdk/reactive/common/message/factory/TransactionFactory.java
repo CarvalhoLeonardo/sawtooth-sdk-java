@@ -22,7 +22,7 @@ import sawtooth.sdk.protobuf.TransactionHeader;
 import sawtooth.sdk.reactive.common.crypto.SawtoothSigner;
 import sawtooth.sdk.reactive.common.family.TransactionFamily;
 
-public class TransactionFactory extends AbstractMessageFactory<Transaction> {
+public class TransactionFactory extends AbstractFamilyMessagesFactory<Transaction> {
 
   /**
    * Our ubiquitous Logger.

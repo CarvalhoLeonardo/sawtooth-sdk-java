@@ -74,6 +74,8 @@ public class FakeValidator implements Runnable {
         "Registering Message Factory of family " + source.getTransactionFamily().getFamilyName());
     this.internalTR = source;
     internalNode = new ReactorNetworkNode(mqAddress, pFactor, "fakeValidator", true);
+    internalNode.setWorkingFunction(transformationFunction);
+
   }
 
   public Function<Message, Message> getOriginalFunction() {
@@ -91,7 +93,6 @@ public class FakeValidator implements Runnable {
 
   @Override
   public void run() {
-    internalNode.setWorkingFunction(transformationFunction);
     internalNode.run();
   }
 

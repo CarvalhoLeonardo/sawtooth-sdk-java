@@ -63,7 +63,7 @@ public class TransactionFamily implements SawtoothAddressFactory {
   @Override
   public String generateAddress(String nameSpace, String address) {
     return nameSpacesMap.get(nameSpace) + FormattingUtils
-        .hash512(address.getBytes(StandardCharsets.UTF_8)).substring(ADDRESS_PREFIX_SIZE);
+        .hash512(address.getBytes(StandardCharsets.UTF_8)).substring(0, ADDRESS_SUFFIX_SIZE);
   }
 
   @Override

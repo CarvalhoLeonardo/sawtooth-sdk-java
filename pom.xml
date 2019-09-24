@@ -19,18 +19,20 @@
 	<packaging>pom</packaging>
 
 	<properties>
-		<reactor-grpc-version>0.8.2</reactor-grpc-version>
-		<grpc-version>1.13.1</grpc-version>
-		<protobuf-version>3.6.0</protobuf-version>
-		<jackson-version>2.9.1</jackson-version>
-		<jersey-version>2.27</jersey-version>
+		<reactor-grpc-version>1.0.0</reactor-grpc-version>
+		<grpc-version>1.22.2</grpc-version>
+		<protobuf-version>3.9.1</protobuf-version>
+		<jackson-version>2.9.9</jackson-version>
+		<jersey-version>2.29</jersey-version>
 		<apachelog-version>2.11.0</apachelog-version>
-		<swagger-version>2.0.2</swagger-version>
+		<swagger-version>2.0.8</swagger-version>
 		<spongycastle-version>1.58.0.0</spongycastle-version>
-		<reactor-version>3.1.8.RELEASE</reactor-version>
+		<reactor-version>3.2.12.RELEASE</reactor-version>
+		<!-- reactor-version>3.1.8.RELEASE</reactor-version -->
 		<ERROR_LEVEL>INFO</ERROR_LEVEL>
 		<SAWTOOTH_LOG_LEVEL>INFO</SAWTOOTH_LOG_LEVEL>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<jeromq-version>0.5.1</jeromq-version>
 	</properties>
 
 	<modules>
@@ -71,7 +73,7 @@
 			<dependency>
 				<groupId>org.zeromq</groupId>
 				<artifactId>jeromq</artifactId>
-				<version>0.4.3</version>
+				<version>${jeromq-version}</version>
 			</dependency>
 
 			<dependency>
@@ -115,32 +117,6 @@
 				<version>${jersey-version}</version>
 			</dependency>
 
-
-			<!-- Java 10 adaptation for http://openjdk.java.net/jeps/320 -->
-			<dependency>
-				<groupId>javax.xml.bind</groupId>
-				<artifactId>jaxb-api</artifactId>
-				<version>2.3.0</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.glassfish.jaxb</groupId>
-				<artifactId>jaxb-runtime</artifactId>
-				<version>2.3.0</version>
-			</dependency>
-
-			<dependency>
-				<groupId>javax.activation</groupId>
-				<artifactId>javax.activation-api</artifactId>
-				<version>1.2.0</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.sun.activation</groupId>
-				<artifactId>javax.activation</artifactId>
-				<version>1.2.0</version>
-			</dependency>
-
 			<dependency>
 				<groupId>javax.annotation</groupId>
 				<artifactId>javax.annotation-api</artifactId>
@@ -182,12 +158,6 @@
 				<artifactId>swagger-annotations</artifactId>
 				<version>1.5.20</version>
 				<scope>provided</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>co.nstant.in</groupId>
-				<artifactId>cbor</artifactId>
-				<version>0.8</version>
 			</dependency>
 
 			<dependency>
@@ -265,7 +235,7 @@
 				<plugin>
 					<groupId>org.xolstice.maven.plugins</groupId>
 					<artifactId>protobuf-maven-plugin</artifactId>
-					<version>0.5.1</version>
+					<version>0.6.1</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-jar-plugin</artifactId>

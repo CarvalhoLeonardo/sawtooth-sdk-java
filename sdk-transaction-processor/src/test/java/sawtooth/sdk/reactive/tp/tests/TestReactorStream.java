@@ -60,7 +60,6 @@ public class TestReactorStream extends BaseTest {
     tpe = Executors.newFixedThreadPool(2);
     fVal = new FakeValidator(simplTH, ADDRESS, parallelFactor);
     reactStream = new ReactorStream(ADDRESS, parallelFactor + 2);
-
     LOGGER.debug("Preparing to start Validator...");
     Future<?> startVal = tpe.submit(() -> {
       fVal.run();

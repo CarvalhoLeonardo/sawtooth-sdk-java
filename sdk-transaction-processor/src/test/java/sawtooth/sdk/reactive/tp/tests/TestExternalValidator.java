@@ -7,6 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
@@ -41,7 +43,7 @@ public class TestExternalValidator extends BaseTest {
 
     /**
      *
-     * Let's ping ourselves, righ ?
+     * Let's ping ourselves, right ?
      *
      * @return Ping response, if any
      */
@@ -106,27 +108,32 @@ public class TestExternalValidator extends BaseTest {
   FakeValidator faveValidatorForClosedTests;
 
   int timeout = 500;
-
+  ExecutorService tpe = null;
   private TestTransactionProcessor tpUnderTest;
 
   @BeforeClass
   public void setUp() {
-
-    tpUnderTest = new TestTransactionProcessor(testConfigData.getProperty("validator_add"),
-        testConfigData.getProperty("tprocessor_id"), parallelFactor, timeout);
     try {
       if (testConfigData.get("localonly").toString().equalsIgnoreCase("true") || testConfigData
           .getProperty("validator_add").toString().equalsIgnoreCase("tcp://127.0.0.1:4004")) {
         // we will use the fake server
+        tpe = Executors.newFixedThreadPool(2);
         faveValidatorForClosedTests = new FakeValidator(testTH, "tcp://127.0.0.1:4004",
             parallelFactor);
-        faveValidatorForClosedTests.run();
+        LOGGER.debug("Preparing to start FAKE Validator...");
+        tpe.submit(faveValidatorForClosedTests).get();
+        LOGGER.debug("Validator Started.");
+        LOGGER.debug("FAKE server Set up!");
       }
+      tpUnderTest = new TestTransactionProcessor(testConfigData.getProperty("validator_add"),
+          testConfigData.getProperty("tprocessor_id"), parallelFactor, timeout);
       tpUnderTest.init();
+      LOGGER.debug("Transaction Processor Started!");
     } catch (InterruptedException | ExecutionException e) {
       e.printStackTrace();
     }
     tpUnderTest.addHandler(testTH);
+    LOGGER.debug("Transaction Handler Added!");
     Assert.assertFalse(tpUnderTest.listRegisteredHandlers().isEmpty());
     Assert.assertEquals(tpUnderTest.listRegisteredHandlers().size(), 1);
     Assert.assertEquals(

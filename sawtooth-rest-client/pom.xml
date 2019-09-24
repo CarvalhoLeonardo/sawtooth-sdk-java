@@ -12,8 +12,9 @@
 	<name>Sawtooth REST Client SDK</name>
 
 	<properties>
-		<sw_rest_url>http://localhost:8080</sw_rest_url>
+		<sw_rest_url>http://localhost:8008</sw_rest_url>
 		<sw_validator_url>http://localhost:4004</sw_validator_url>
+		<open_api_version>4.1.0</open_api_version>
 	</properties>
 
 	<profiles>
@@ -31,24 +32,8 @@
 				</dependency>
 
 				<dependency>
-					<groupId>com.sun.activation</groupId>
-					<artifactId>javax.activation</artifactId>
-				</dependency>
-
-				<dependency>
 					<groupId>javax.annotation</groupId>
 					<artifactId>javax.annotation-api</artifactId>
-				</dependency>
-
-				<dependency>
-					<groupId>javax.xml.bind</groupId>
-					<artifactId>jaxb-api</artifactId>
-				</dependency>
-
-				<dependency>
-					<groupId>org.glassfish.jaxb</groupId>
-					<artifactId>jaxb-runtime</artifactId>
-					<scope>runtime</scope>
 				</dependency>
 
 			</dependencies>
@@ -186,7 +171,7 @@
 			<plugin>
 				<groupId>org.openapitools</groupId>
 				<artifactId>openapi-generator-maven-plugin</artifactId>
-				<version>3.3.4</version>
+				<version>${open_api_version}</version>
 				<executions>
 					<execution>
 						<goals>
@@ -208,8 +193,8 @@
 							
 							A good help in understanding this parameters can be get from 
 							
-							java -jar ${m2_repo}/org/openapitools/openapi-generator-cli/3.0.3/openapi-generator-cli-3.0.3.jar 
-								config-help -l java 
+							java -jar ${m2_repo}/org/openapitools/openapi-generator-cli/${open_api_version}/openapi-generator-cli-${open_api_version}.jar 
+								config-help -g java 
 
 							]]></token>
 							<configOptions>

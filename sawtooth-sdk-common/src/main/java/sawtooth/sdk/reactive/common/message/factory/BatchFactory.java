@@ -14,7 +14,7 @@ import sawtooth.sdk.protobuf.Transaction;
 import sawtooth.sdk.protobuf.TransactionList;
 import sawtooth.sdk.reactive.common.crypto.SawtoothSigner;
 
-public class BatchFactory extends AbstractMessageFactory<Batch> {
+public class BatchFactory extends AbstractFamilyMessagesFactory<Batch> {
 
   /*
    * Our ubiquitous Logger.

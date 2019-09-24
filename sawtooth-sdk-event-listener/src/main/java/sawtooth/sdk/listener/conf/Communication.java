@@ -23,6 +23,7 @@ import sawtooth.sdk.protobuf.EventSubscription;
 import sawtooth.sdk.protobuf.Message;
 import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.reactive.common.utils.FormattingUtils;
+import sawtooth.sdk.reactive.tp.transport.zmq.ReactorNetworkNode;
 
 /**
  *

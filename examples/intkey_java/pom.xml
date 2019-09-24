@@ -1,12 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- * Copyright 2017 Intel Corporation * * Licensed under the Apache License, 
-	Version 2.0 (the "License"); * you may not use this file except in compliance 
-	with the License. * You may obtain a copy of the License at * * http://www.apache.org/licenses/LICENSE-2.0 
-	* * Unless required by applicable law or agreed to in writing, software * 
-	distributed under the License is distributed on an "AS IS" BASIS, * WITHOUT 
-	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. * See the 
-	License for the specific language governing permissions and * limitations 
-	under the License. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -16,7 +8,11 @@
 	<artifactId>intkey_java</artifactId>
 	<name>Sawtooth Java Example - Integer Key Transaction Processor</name>
 	<version>0.1.2-SNAPSHOT</version>
+	<!-- 
 	
+	mvn -U -DskipTests=true -Dexec.mainClass="sawtooth.examples.intkey.IntegerKeyTransactionProcessor" -Dexec.args="tcp://127.0.0.1:4004 lala 2"  clean package exec:java 
+	
+	 -->
 	<properties>
 		<apachelog-version>2.11.0</apachelog-version>
 	</properties>
@@ -48,7 +44,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.7.0</version>
+				<version>3.8.0</version>
 				<configuration>
 					<release>11</release>
 					<encoding>UTF-8</encoding>
@@ -113,29 +109,6 @@
 			<artifactId>cbor</artifactId>
 			<version>0.8</version>
 		</dependency>
-		<!-- Java 10 adaptation for http://openjdk.java.net/jeps/320 -->
-		<dependency>
-			<groupId>javax.xml.bind</groupId>
-			<artifactId>jaxb-api</artifactId>
-			<version>2.3.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.glassfish.jaxb</groupId>
-			<artifactId>jaxb-runtime</artifactId>
-			<version>2.3.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>javax.activation</groupId>
-			<artifactId>javax.activation-api</artifactId>
-			<version>1.2.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.sun.activation</groupId>
-			<artifactId>javax.activation</artifactId>
-			<version>1.2.0</version>
-		</dependency>
+		
 	</dependencies>
 </project>

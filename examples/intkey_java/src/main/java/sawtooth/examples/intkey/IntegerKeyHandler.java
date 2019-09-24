@@ -15,8 +15,6 @@ package sawtooth.examples.intkey;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -27,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.bitcoinj.core.ECKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,80 +42,48 @@ import sawtooth.sdk.protobuf.TpProcessResponse;
 import sawtooth.sdk.protobuf.TpProcessResponse.Status;
 import sawtooth.sdk.reactive.common.exceptions.InternalError;
 import sawtooth.sdk.reactive.common.exceptions.InvalidTransactionException;
-import sawtooth.sdk.reactive.common.messaging.MessageFactory;
-import sawtooth.sdk.reactive.common.messaging.SawtoothAddressFactory;
-import sawtooth.sdk.reactive.common.utils.FormattingUtils;
+import sawtooth.sdk.reactive.common.family.TransactionFamily;
+import sawtooth.sdk.reactive.common.message.factory.BatchFactory;
+import sawtooth.sdk.reactive.common.message.factory.TransactionFactory;
+import sawtooth.sdk.reactive.tp.message.factory.CoreMessagesFactory;
+import sawtooth.sdk.reactive.tp.message.factory.FamilyRegistryMessageFactory;
 import sawtooth.sdk.reactive.tp.processor.SawtoothState;
 import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
 
-public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFactory {
+public class IntegerKeyHandler implements TransactionHandler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(IntegerKeyHandler.class.getName());
-
   private static final long MAX_NAME_LENGTH = 20;
   private static final long MAX_VALUE = Long.MAX_VALUE;
   private static final long MIN_VALUE = 0;
-  private MessageFactory tpMesgFactory;
+  private static final String ONLY_NAMESPACE = "intkey";
+  private final BatchFactory INTKEY_BATCH_FACTORY;
+  private final CoreMessagesFactory INTKEY_CORE_MESSAGE_FACTORY;
+  private final TransactionFamily INTKEY_MESSAGE_FAMILY;
+  private final FamilyRegistryMessageFactory INTKEY_REGISTRY_MESSAGE_FACTORY;
+  private final TransactionFactory INTKEY_TRANSACTION_FACTORY;
+  private ECKey pubKey;
 
   /**
    * constructor.
+   * @throws NoSuchAlgorithmException
    *
    */
-  public IntegerKeyHandler() {
+  public IntegerKeyHandler(ECKey privateKey) throws NoSuchAlgorithmException {
+    pubKey = ECKey.fromPublicOnly(privateKey.getPubKeyPoint());
+    LOGGER.debug("Integet K Handler with EC Key using crypter {} and Public Key {}",
+        privateKey.getKeyCrypter(), pubKey.getPublicKeyAsHex());
+    INTKEY_MESSAGE_FAMILY = new TransactionFamily("intkey", "1.0", new String[] { ONLY_NAMESPACE });
 
-    try {
-      tpMesgFactory = new MessageFactory("intkey", "1.0", null, null, "intkey");
-    } catch (NoSuchAlgorithmException e) {
-      e.printStackTrace();
-    }
-  }
-
-  /**
-   * Helper function to decode the Payload of a transaction. Convert the co.nstant.in.cbor.model.Map
-   * to a HashMap.
-   */
-  public Map<String, String> decodePayload(byte[] bytes) throws CborException {
-    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-    co.nstant.in.cbor.model.Map data = (co.nstant.in.cbor.model.Map) new CborDecoder(bais)
-        .decodeNext();
-    DataItem[] keys = data.getKeys().toArray(new DataItem[0]);
-    Map<String, String> result = new HashMap<>();
-    for (int i = 0; i < keys.length; i++) {
-      result.put(keys[i].toString(), data.get(keys[i]).toString());
-    }
-    return result;
-  }
-
-  /**
-   * Helper function to decode State retrieved from the address of the name. Convert the
-   * co.nstant.in.cbor.model.Map to a HashMap.
-   */
-  public Map<String, Long> decodeState(byte[] bytes) throws CborException {
-    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-    co.nstant.in.cbor.model.Map data = (co.nstant.in.cbor.model.Map) new CborDecoder(bais)
-        .decodeNext();
-    DataItem[] keys = data.getKeys().toArray(new DataItem[0]);
-    Map<String, Long> result = new HashMap<>();
-    for (int i = 0; i < keys.length; i++) {
-      result.put(keys[i].toString(), Long.decode(data.get(keys[i]).toString()));
-    }
-    return result;
-  }
-
-  /**
-   * Helper function to encode the State that will be stored at the address of the name.
-   */
-  public Map.Entry<String, ByteString> encodeState(String address, String name, Long value)
-      throws CborException {
-    ByteArrayOutputStream boas = new ByteArrayOutputStream();
-    new CborEncoder(boas).encode(new CborBuilder().addMap().put(name, value).end().build());
-
-    return new AbstractMap.SimpleEntry<String, ByteString>(address,
-        ByteString.copyFrom(boas.toByteArray()));
+    INTKEY_CORE_MESSAGE_FACTORY = new CoreMessagesFactory();
+    INTKEY_REGISTRY_MESSAGE_FACTORY = new FamilyRegistryMessageFactory(privateKey,
+        INTKEY_MESSAGE_FAMILY);
+    INTKEY_BATCH_FACTORY = new BatchFactory(privateKey);
+    INTKEY_TRANSACTION_FACTORY = new TransactionFactory(INTKEY_MESSAGE_FAMILY, privateKey);
   }
 
   @Override
-  public CompletableFuture<TpProcessResponse> executeProcessRequest(TpProcessRequest processRequest,
+  public CompletableFuture<TpProcessResponse> apply(TpProcessRequest processRequest,
       SawtoothState state) {
     /*
      * IntKey state will be stored at an address of the name with the key being the name and the
@@ -124,7 +91,7 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
      * hashes foo and bar to the same address
      */
 
-    TpProcessResponse.Builder responseBulder = TpProcessResponse.newBuilder();
+    TpProcessResponse.Builder responseBuilder = TpProcessResponse.newBuilder();
 
     try {
       Map<String, String> updateMap;
@@ -173,7 +140,7 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
             + Long.toString(MIN_VALUE) + " and no greater than " + Long.toString(MAX_VALUE));
       }
 
-      String address = generateAddress(name);
+      String address = INTKEY_MESSAGE_FAMILY.generateAddress(ONLY_NAMESPACE, name);
 
       Collection<String> addresses = new ArrayList<String>();
       Map<String, ByteString> possibleAddressValues;
@@ -212,10 +179,11 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
       case INC:
         Map<String, ByteString> possibleValues = state.getState(processRequest.getContextId(),
             Arrays.asList(address));
-        stateValueRep = possibleValues.get(address).toByteArray();
-        if (stateValueRep.length == 0) {
+
+        if (possibleValues.isEmpty()) {
           throw new InvalidTransactionException("Verb is inc but Name is not in state");
         }
+        stateValueRep = possibleValues.get(address).toByteArray();
         stateValue = this.decodeState(stateValueRep);
         if (!stateValue.containsKey(name)) {
           throw new InvalidTransactionException("Verb is inc but Name is not in state");
@@ -233,11 +201,11 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
       case DEC:
         Map<String, ByteString> possibleAddressResult = state
             .getState(processRequest.getContextId(), Arrays.asList(address));
-        stateValueRep = possibleAddressResult.get(address).toByteArray();
 
-        if (stateValueRep.length == 0) {
+        if (possibleAddressResult.isEmpty()) {
           throw new InvalidTransactionException("Verb is dec but Name is not in state");
         }
+        stateValueRep = possibleAddressResult.get(address).toByteArray();
         stateValue = this.decodeState(stateValueRep);
         if (!stateValue.containsKey(name)) {
           throw new InvalidTransactionException("Verb is dec but Name is not in state");
@@ -260,69 +228,116 @@ public class IntegerKeyHandler implements TransactionHandler, SawtoothAddressFac
         throw new InternalError("State error!.");
       }
       LOGGER.info("Verb: " + verb + " Name: " + name + " value: " + value);
-      responseBulder.setStatus(Status.OK);
-      responseBulder.setMessage(address + " set correctly.");
+      responseBuilder.setStatus(Status.OK);
+      responseBuilder.setMessage(address + " set correctly.");
     } catch (InvalidTransactionException e) {
       LOGGER.error("Exception {}", e);
       e.printStackTrace();
-      responseBulder.setStatus(Status.INVALID_TRANSACTION);
-      responseBulder.setMessage(e.getMessage());
+      responseBuilder.setStatus(Status.INVALID_TRANSACTION);
+      responseBuilder.setMessage(e.getMessage());
     } catch (InternalError e) {
       e.printStackTrace();
-      responseBulder.setStatus(Status.INTERNAL_ERROR);
-      responseBulder.setMessage(e.getMessage());
-
+      responseBuilder.setStatus(Status.INTERNAL_ERROR);
+      responseBuilder.setMessage(e.getMessage());
     } catch (CborException e) {
-      LOGGER.error("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}", e);
-      LOGGER.debug("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}", e);
+      LOGGER.error("Cbor Exception {}", e);
       e.printStackTrace();
+      responseBuilder.setStatus(Status.INTERNAL_ERROR);
+      responseBuilder.setMessage(e.getMessage());
     } catch (InvalidProtocolBufferException e) {
-      LOGGER.error("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}", e);
-      LOGGER.debug("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA Exception {}", e);
+      LOGGER.error("InvalidProtocolBuffer Exception {}", e);
       e.printStackTrace();
+      responseBuilder.setStatus(Status.INTERNAL_ERROR);
+      responseBuilder.setMessage(e.getMessage());
     }
 
-    return CompletableFuture.completedFuture(responseBulder.build());
+    return CompletableFuture.completedFuture(responseBuilder.build());
   }
 
-  @Override
-  public String generateAddress(ByteBuffer data) {
-    return FormattingUtils.hash512(data.array());
-  }
-
-  @Override
-  public String generateAddress(String... names) {
-    String hashedName = "";
-    try {
-      hashedName = FormattingUtils.hash512(names[0].getBytes("UTF-8"));
-    } catch (UnsupportedEncodingException e) {
-      e.printStackTrace();
+  /**
+   * Helper function to decode the Payload of a transaction. Convert the co.nstant.in.cbor.model.Map
+   * to a HashMap.
+   */
+  public Map<String, String> decodePayload(byte[] bytes) throws CborException {
+    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+    co.nstant.in.cbor.model.Map data = (co.nstant.in.cbor.model.Map) new CborDecoder(bais)
+        .decodeNext();
+    DataItem[] keys = data.getKeys().toArray(new DataItem[0]);
+    Map<String, String> result = new HashMap<>();
+    for (int i = 0; i < keys.length; i++) {
+      result.put(keys[i].toString(), data.get(keys[i]).toString());
     }
-    return tpMesgFactory.getNameSpaces()[0] + hashedName.substring(hashedName.length() - 64);
+    return result;
+  }
+
+  /**
+   * Helper function to decode State retrieved from the address of the name. Convert the
+   * co.nstant.in.cbor.model.Map to a HashMap.
+   */
+  public Map<String, Long> decodeState(byte[] bytes) throws CborException {
+    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+    co.nstant.in.cbor.model.Map data = (co.nstant.in.cbor.model.Map) new CborDecoder(bais)
+        .decodeNext();
+    DataItem[] keys = data.getKeys().toArray(new DataItem[0]);
+    Map<String, Long> result = new HashMap<>();
+    for (int i = 0; i < keys.length; i++) {
+      result.put(keys[i].toString(), Long.decode(data.get(keys[i]).toString()));
+    }
+    return result;
+  }
+
+  /**
+   * Helper function to encode the State that will be stored at the address of the name.
+   */
+  public Map.Entry<String, ByteString> encodeState(String address, String name, Long value)
+      throws CborException {
+    ByteArrayOutputStream boas = new ByteArrayOutputStream();
+    new CborEncoder(boas).encode(new CborBuilder().addMap().put(name, value).end().build());
+
+    return new AbstractMap.SimpleEntry<String, ByteString>(address,
+        ByteString.copyFrom(boas.toByteArray()));
   }
 
   @Override
-  public MessageFactory getMessageFactory() {
-    return tpMesgFactory;
+  public BatchFactory getBatchFactory() {
+    return INTKEY_BATCH_FACTORY;
+  }
+
+  @Override
+  public CoreMessagesFactory getCoreMessageFactory() {
+    return INTKEY_CORE_MESSAGE_FACTORY;
+  }
+
+  @Override
+  public FamilyRegistryMessageFactory getFamilyRegistryMessageFactory() {
+    return INTKEY_REGISTRY_MESSAGE_FACTORY;
   }
 
   @Override
   public Collection<String> getNameSpaces() {
-    return Arrays.asList(tpMesgFactory.getNameSpaces());
+    // TODO Auto-generated method stub
+    return null;
   }
 
   @Override
-  public String getVersion() {
-    return tpMesgFactory.getFamilyVersion();
+  public TransactionFactory getTransactionFactory() {
+    return INTKEY_TRANSACTION_FACTORY;
   }
 
   @Override
-  public void setMessageFactory(MessageFactory mFactory) {
-
+  public TransactionFamily getTransactionFamily() {
+    return INTKEY_MESSAGE_FAMILY;
   }
 
   @Override
-  public String transactionFamilyName() {
-    return tpMesgFactory.getFamilyName();
+  public ECKey getTransactorPubKey() {
+    return pubKey;
   }
+
+  @Override
+  public void setContextId(byte[] externalContextID) {
+    // TODO Auto-generated method stub
+
+  }
+
 }

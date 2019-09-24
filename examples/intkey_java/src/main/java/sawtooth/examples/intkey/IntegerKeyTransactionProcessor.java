@@ -14,8 +14,11 @@
 
 package sawtooth.examples.intkey;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutionException;
-import sawtooth.examples.intkey.IntegerKeyHandler;
+
+import org.bitcoinj.core.ECKey;
+
 import sawtooth.sdk.reactive.tp.processor.DefaultTransactionProcessorImpl;
 import sawtooth.sdk.reactive.tp.processor.TransactionProcessor;
 
@@ -25,12 +28,15 @@ public class IntegerKeyTransactionProcessor {
    * the method that runs a Thread with a TransactionProcessor in it.
    * @throws ExecutionException
    * @throws InterruptedException
+   * @throws NoSuchAlgorithmException
    */
-  public static void main(String[] args) throws InterruptedException, ExecutionException {
-
-    TransactionProcessor transactionProcessor = new DefaultTransactionProcessorImpl(args[0],args[1], Integer.parseInt(args[2]));
+  public static void main(String[] args)
+      throws InterruptedException, ExecutionException, NoSuchAlgorithmException {
+    ECKey privKey = new ECKey();
+    TransactionProcessor transactionProcessor = new DefaultTransactionProcessorImpl(args[0],
+        args[1], Integer.parseInt(args[2]), Integer.parseInt(args[3]));
     transactionProcessor.init();
-    transactionProcessor.addHandler(new IntegerKeyHandler());
+    transactionProcessor.addHandler(new IntegerKeyHandler(privKey));
 
   }
 }

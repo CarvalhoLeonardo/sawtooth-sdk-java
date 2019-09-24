@@ -1,15 +1,9 @@
 package sawtooth.sdk.reactive.common.message.factory;
 
-import java.security.InvalidParameterException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 import java.util.function.Supplier;
-
-import org.bitcoin.NativeSecp256k1;
-import org.bitcoinj.core.ECKey;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.GeneratedMessageV3;
 
@@ -22,48 +16,23 @@ import sawtooth.sdk.reactive.common.utils.FormattingUtils;
  * <a href="https://github.com/CarvalhoLeonardo">GitHub</a>
  * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
- * @param <T> - A Message Type that belongs to a Transaction Family
- *
- * They differ from other messages because, to be a factory, you need a private ECKey to work the
- * payloads and headers
- *
+ * @param <T> Simple Sawtooth message to be generated. This messages are not related to
+ * transactions, but used in othr processes
  */
-public abstract class AbstractFamilyMessagesFactory<T extends GeneratedMessageV3> {
+public abstract class AbstractMessageFactory<T extends GeneratedMessageV3> {
 
-  protected static final ThreadLocal<MessageDigest> FACTORY_MESSAGEDIGESTER = ThreadLocal
+  private static final ThreadLocal<MessageDigest> FACTORY_MESSAGEDIGESTER = ThreadLocal
       .withInitial(new Supplier<MessageDigest>() {
         @Override
         public MessageDigest get() {
           try {
             return MessageDigest.getInstance("SHA-512");
           } catch (NoSuchAlgorithmException e) {
-            LOGGER.error("No SHA 512 provider found... Problems ahead.");
             e.printStackTrace();
           }
           return null;
         }
       });
-  protected static Logger LOGGER = LoggerFactory.getLogger(AbstractFamilyMessagesFactory.class);
-  protected ECKey privateKey;
-
-  @SuppressWarnings("unused")
-  private AbstractFamilyMessagesFactory() throws NoSuchAlgorithmException {
-    privateKey = null;
-  }
-
-  public AbstractFamilyMessagesFactory(ECKey privateKey) throws NoSuchAlgorithmException {
-    if (privateKey == null) {
-      throw new InvalidParameterException("Null Private Key");
-    }
-    if (!NativeSecp256k1.secKeyVerify(privateKey.getPrivKeyBytes())) {
-      throw new InvalidParameterException(
-          "Invalid NativeSecp256k1 Private Key " + privateKey.toASN1());
-    }
-    this.privateKey = privateKey;
-
-    LOGGER.trace("Private key {}.", privateKey);
-    LOGGER.trace("Public key {}.", privateKey.getPubKey());
-  }
 
   @Override
   protected Object clone() throws CloneNotSupportedException {
