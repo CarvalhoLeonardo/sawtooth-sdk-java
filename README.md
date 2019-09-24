@@ -37,7 +37,7 @@ Version 3.5.0 or higher.
 
 ### Sawtooth
 
-. Versions 1.0.5+, with [this patch](https://github.com/CarvalhoLeonardo/sawtooth-core/commit/1ce3dea3aaf6075dc738ebf0022b6fde970b3fa2), where used to validate.
+. Versions 1.2.2+ where used to validate.
 
 . To run all tests, please register the test family, with `sawset proposal create sawtooth.validator.transaction_families='[..., {"family":"sawtooth_settings","version":"1.0"}, {"family":"coretests", "version":"0.0"}]'` 
 
