@@ -120,8 +120,48 @@ public class TestCoreReactor extends BaseTest {
    * @throws InterruptedException
    * @throws ExecutionException
    */
+  @Test
+  public void testALOTBackToBack()
+      throws InvalidProtocolBufferException, InterruptedException, ExecutionException {
+
+    final int alotMessages = 2000;
+
+    Disposable emitterSubscription = emp
+        .doOnNext(
+            s -> LOGGER.debug("Emitting message with correlation ID {} ...", s.getCorrelationId()))
+        .subscribeWith(reactor1.getSenderProcessor()).subscribe();
+
+    final List<Message> allMessages = Collections.synchronizedList(new ArrayList<>());
+
+    ConnectableFlux<Message> reference = reactor1.getIncomingMessages();
+
+    reference.parallel(parallelFactor).runOn(Schedulers.parallel())
+        .subscribe(new InternalConsumer(allMessages));
+
+    IntStream.range(0, alotMessages).forEach(n -> {
+      try {
+        emp.onNext(coreReactorTestFactory.getPingRequest());
+      } catch (InvalidProtocolBufferException e) {
+      }
+    });
+
+    // 100 milisseconds or bust!!!
+    Thread.sleep(100L);
+    assertFalse(allMessages.isEmpty());
+    assertEquals(allMessages.size(), alotMessages);
+
+    emitterSubscription.dispose();
+  }
+
+  /**
+   * Let's send a hundred messages
+   *
+   * @throws InvalidProtocolBufferException
+   * @throws InterruptedException
+   * @throws ExecutionException
+   */
   @Test(dependsOnMethods = { "testOneBackToBack" })
-  public void testHundredBackToBack()
+  public void testFourHundredBackToBack()
       throws InvalidProtocolBufferException, InterruptedException, ExecutionException {
     Disposable emitterSubscription = emp
         .doOnNext(
@@ -135,7 +175,7 @@ public class TestCoreReactor extends BaseTest {
     reference.parallel(parallelFactor).runOn(Schedulers.parallel())
         .subscribe(new InternalConsumer(allMessages));
 
-    IntStream.range(0, 100).forEach(n -> {
+    IntStream.range(0, 400).forEach(n -> {
       try {
         emp.onNext(coreReactorTestFactory.getPingRequest());
       } catch (InvalidProtocolBufferException e) {
@@ -145,10 +185,10 @@ public class TestCoreReactor extends BaseTest {
     // 100 milisseconds or bust!!!
     Thread.sleep(100L);
     assertFalse(allMessages.isEmpty());
-    assertEquals(allMessages.size(), 100);
+    assertEquals(allMessages.size(), 400);
 
     emitterSubscription.dispose();
-  }
+  };
 
   /**
    * Let's send one message
@@ -184,6 +224,6 @@ public class TestCoreReactor extends BaseTest {
 
     oneMessageSubscription.dispose();
     emitterSubscription.dispose();
-  };
+  }
 
 }

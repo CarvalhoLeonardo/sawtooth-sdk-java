@@ -38,7 +38,7 @@ import sawtooth.sdk.reactive.tp.simulator.SimpleTestTransactionHandler;
  * <a href="https://br.linkedin.com/in/leonardocarvalho">LinkedIn</a>
  *
  * mvn -Dtest=TestReactorStream -Dmaven.surefire.debug="-Xdebug
- * -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000 -Xnoagent -Djava.compiler=NONE"
+ * -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000 -Xnoagent -Djava.compiler=NONE
  * clean test
  *
  *
@@ -58,7 +58,7 @@ public class TestReactorStream extends BaseTest {
   @BeforeClass
   public void setUp() throws InterruptedException {
     tpe = Executors.newFixedThreadPool(2);
-    fVal = new FakeValidator(simplTH, ADDRESS, parallelFactor);
+    fVal = new FakeValidator(ADDRESS, parallelFactor);
     reactStream = new ReactorStream(ADDRESS, parallelFactor + 2);
     LOGGER.debug("Preparing to start Validator...");
     Future<?> startVal = tpe.submit(() -> {
@@ -100,8 +100,8 @@ public class TestReactorStream extends BaseTest {
       LOGGER.debug("Sending request : " + em.getCorrelationId());
       reactStream.sendBack(em.getCorrelationId(), em);
       try {
-        CompletableFuture<Message> awaitingOne = (CompletableFuture<Message>) reactStream
-            .receive(em.getCorrelationId(), Duration.ofMillis(waitingTimeTest));
+        CompletableFuture<Message> awaitingOne = reactStream.receive(em.getCorrelationId(),
+            Duration.ofMillis(waitingTimeTest));
         awaitingOne.whenComplete((rs, ex) -> {
           if (ex != null) {
             LOGGER.debug("::==========>> FAILURE {}.", ex.getMessage());

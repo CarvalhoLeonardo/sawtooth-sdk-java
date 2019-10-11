@@ -158,15 +158,13 @@ public class ReactorNetworkNode implements Runnable {
   @Override
   public void run() {
     frontendSocket = context.createSocket(SocketType.ROUTER);
-    // To use ROUTER, we need or to implement https://github.com/zeromq/pyzmq/issues/974 or know
-    // the ID of the server socket...
     frontendSocket.setLinger(0);
     frontendSocket.setImmediate(false);
+    frontendSocket.setProbeRouter(true);
     if (server) {
       LOGGER.debug(NODE_IDENTIFICATION + " Server mode");
       zmqRouterID = (this.getClass().getName() + UUID.randomUUID().toString()).getBytes();
       frontendSocket.setIdentity(zmqRouterID);
-      frontendSocket.setProbeRouter(true);
       if (frontendSocket.bind(mqMainAddress)) {
         LOGGER.debug("{} Server : Bound to {} and ID {};.", NODE_IDENTIFICATION, mqMainAddress,
             new String(frontendSocket.getIdentity()));
@@ -175,7 +173,6 @@ public class ReactorNetworkNode implements Runnable {
       LOGGER.debug("{} Client mode to address {}...", NODE_IDENTIFICATION, mqMainAddress);
       frontendSocket
           .setIdentity((this.getClass().getName() + UUID.randomUUID().toString()).getBytes());
-      frontendSocket.setProbeRouter(false);
 
       if (frontendSocket.connect(mqMainAddress)) {
         // wait for probe reply before sending

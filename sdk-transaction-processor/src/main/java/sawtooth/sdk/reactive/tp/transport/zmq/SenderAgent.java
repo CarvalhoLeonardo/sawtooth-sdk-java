@@ -1,5 +1,6 @@
 package sawtooth.sdk.reactive.tp.transport.zmq;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -48,13 +49,15 @@ public class SenderAgent implements Consumer<Message> {
     if (addressCorrelationMapping.containsKey(sawtoothMessage.getCorrelationId())) {
       // We are answering a message, we need to address it!
       LOGGER.debug("{} It's a response to socket ID {}", myName,
-          new String(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId())));
+          new String(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId())),
+          StandardCharsets.UTF_8);
       msg.add(addressCorrelationMapping.get(sawtoothMessage.getCorrelationId()));
       addressCorrelationMapping.remove(sawtoothMessage.getCorrelationId());
     } else {
       LOGGER.debug(myName + " It's a request from us.");
       if (externalSocketId != null && !(externalSocketId.length == 0)) {
-        LOGGER.debug(" External socket ID : {}.", new String(externalSocketId));
+        LOGGER.debug(" External socket ID : {}.",
+            new String(externalSocketId, StandardCharsets.UTF_8));
         /**
 @formatter:off
      msg.wrap(new ZFrame(externalSocketId)) gets the error
@@ -72,13 +75,15 @@ public class SenderAgent implements Consumer<Message> {
       }
     }
 
-    LOGGER.debug("{} sent through socket {} to route {}", myName, new String(socket.getIdentity()),
-        new String(externalSocketId));
+    LOGGER.debug("{} sent through socket {} to route {}", myName,
+        new String(socket.getIdentity(), StandardCharsets.UTF_8), new String(externalSocketId));
 
     if (msg.add(sawtoothMessage.toByteArray())) {
-      LOGGER.debug("Payload prepared to send to {} ", new String(externalSocketId));
+      LOGGER.debug("Payload prepared to send to {} ",
+          new String(externalSocketId, StandardCharsets.UTF_8));
     } else {
-      LOGGER.error("Payload NOT prepared to send to {} ", new String(externalSocketId));
+      LOGGER.error("Payload NOT prepared to send to {} ",
+          new String(externalSocketId, StandardCharsets.UTF_8));
     }
 
     if (msg.send(socket, false)) {

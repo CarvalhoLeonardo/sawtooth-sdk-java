@@ -4,6 +4,7 @@ import static sawtooth.sdk.protobuf.Message.MessageType.PING_REQUEST_VALUE;
 import static sawtooth.sdk.protobuf.Message.MessageType.PING_RESPONSE_VALUE;
 import static sawtooth.sdk.protobuf.Message.MessageType.TP_REGISTER_REQUEST_VALUE;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -12,9 +13,10 @@ import org.slf4j.LoggerFactory;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import sawtooth.sdk.protobuf.Message;
+import sawtooth.sdk.protobuf.Message.MessageType;
 import sawtooth.sdk.protobuf.TpRegisterRequest;
 import sawtooth.sdk.protobuf.TpRegisterResponse;
-import sawtooth.sdk.reactive.tp.processor.TransactionHandler;
+import sawtooth.sdk.reactive.tp.fake.factory.message.FakeValidatorCoreMF;
 import sawtooth.sdk.reactive.tp.transport.zmq.ReactorNetworkNode;
 
 /**
@@ -31,10 +33,21 @@ import sawtooth.sdk.reactive.tp.transport.zmq.ReactorNetworkNode;
  *
  */
 public class FakeValidator implements Runnable {
+  private final static FakeValidatorCoreMF localCMF;
   private final static Logger LOGGER = LoggerFactory.getLogger(FakeValidator.class);
+  private final static TpRegisterResponse.Builder registerRespBldr = TpRegisterResponse
+      .newBuilder();
+  static {
+    FakeValidatorCoreMF tmpFC = null;
+    try {
+      tmpFC = new FakeValidatorCoreMF();
+    } catch (NoSuchAlgorithmException e) {
+
+    }
+    localCMF = tmpFC;
+  }
 
   ReactorNetworkNode internalNode;
-  TransactionHandler internalTR;
 
   private Function<Message, Message> transformationFunction = new Function<Message, Message>() {
     @Override
@@ -43,13 +56,18 @@ public class FakeValidator implements Runnable {
       case PING_REQUEST_VALUE:
         LOGGER.debug("--------------------- Receiving PING_REQUEST -- CID {}",
             m.getCorrelationId());
-        m = internalTR.getCoreMessageFactory().getPingResponse(m.getCorrelationId());
+        m = localCMF.getPingResponse(m.getCorrelationId());
         break;
       case PING_RESPONSE_VALUE:
         LOGGER.debug("--------------------- Receiving PING_RESPONSE -- CID {}",
             m.getCorrelationId());
         break;
       case TP_REGISTER_REQUEST_VALUE:
+        /*
+         * dispatcher.add_handler( validator_pb2.Message.TP_REGISTER_REQUEST,
+         * processor_handlers.ProcessorRegisterHandler( executor.processor_manager), thread_pool)
+         *
+         */
         LOGGER.debug("--------------------- Receiving REGISTER_REQUEST -- CID {}",
             m.getCorrelationId());
         try {
@@ -57,8 +75,12 @@ public class FakeValidator implements Runnable {
         } catch (InvalidProtocolBufferException e) {
           e.printStackTrace();
         }
-        m = internalTR.getFamilyRegistryMessageFactory()
-            .getRegisterResponse(TpRegisterResponse.Status.OK_VALUE, m.getCorrelationId());
+        m = Message.newBuilder()
+            .setContent(registerRespBldr.setStatusValue(TpRegisterResponse.Status.OK_VALUE).build()
+                .toByteString())
+            .setCorrelationId(m.getCorrelationId()).setMessageType(MessageType.TP_REGISTER_RESPONSE)
+            .build();
+
         break;
       default:
         LOGGER.debug("--------------------- Receiving not prepared for type {} -- CID {}",
@@ -69,10 +91,7 @@ public class FakeValidator implements Runnable {
     }
   };
 
-  public FakeValidator(TransactionHandler source, String mqAddress, int pFactor) {
-    LOGGER.debug(
-        "Registering Message Factory of family " + source.getTransactionFamily().getFamilyName());
-    this.internalTR = source;
+  public FakeValidator(String mqAddress, int pFactor) {
     internalNode = new ReactorNetworkNode(mqAddress, pFactor, "fakeValidator", true);
     internalNode.setWorkingFunction(transformationFunction);
 
@@ -83,12 +102,14 @@ public class FakeValidator implements Runnable {
   }
 
   private void receiveRegisterRequest(TpRegisterRequest req) throws InvalidProtocolBufferException {
-    LOGGER.debug("Registering Message Factory of family " + req.getFamily());
-    if (!this.internalTR.getTransactionFamily().getFamilyName().equalsIgnoreCase(req.getFamily())
-        && this.internalTR.getTransactionFamily().getFamilyVersion()
-            .equalsIgnoreCase(req.getVersion())) {
-      throw new InvalidProtocolBufferException("Wrong TP version received !");
-    }
+    LOGGER.debug("Registering Message Factory of family {} and version {}", req.getFamily(),
+        req.getVersion());
+    /*
+     * if (!this.internalTR.getTransactionFamily().getFamilyName().equalsIgnoreCase(req.getFamily())
+     * && this.internalTR.getTransactionFamily().getFamilyVersion()
+     * .equalsIgnoreCase(req.getVersion())) { throw new
+     * InvalidProtocolBufferException("Wrong TP version received !");
+     */
   }
 
   @Override

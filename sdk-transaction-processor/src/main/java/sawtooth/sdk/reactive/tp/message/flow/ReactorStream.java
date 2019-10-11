@@ -2,7 +2,6 @@ package sawtooth.sdk.reactive.tp.message.flow;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -54,12 +53,12 @@ public class ReactorStream extends MessagesStream implements Runnable {
   }
 
   @Override
-  public Future<Message> receive(final String corlID) {
+  public CompletableFuture<Message> receive(final String corlID) {
     return internalNode.waitForMessage(corlID);
   }
 
   @Override
-  public Future<Message> receive(final String corlID, final Duration timeout)
+  public CompletableFuture<Message> receive(final String corlID, final Duration timeout)
       throws TimeoutException {
 
     return internalNode.waitForMessage(corlID).orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -74,7 +73,7 @@ public class ReactorStream extends MessagesStream implements Runnable {
   }
 
   @Override
-  public Future<Message> send(final Message payload) {
+  public CompletableFuture<Message> send(final Message payload) {
     LOGGER.debug("Future<Message> Sending...");
     internalNode.sendMessage(payload);
 

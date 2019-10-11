@@ -18,14 +18,15 @@
 
 package sawtooth.sdk.reactive.tp.processor;
 
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -109,29 +110,46 @@ public class DefaultSawtoothStateImpl implements SawtoothState {
         results.put(entry.getAddress(), entry.getData());
       }
     }
-    if (results.isEmpty()) {
-      throw new InvalidTransactionException(
-          "State Error, no result found for get request:" + addresses.toString());
-    }
+    /*
+     * if (results.isEmpty()) { throw new InvalidTransactionException(
+     * "State Error, no result found for get request:" + addresses.toString()); }
+     */
 
     return results;
+  }
+
+  private Message getTimeoutMessage(String corrId, Message.MessageType type) {
+    return Message.newBuilder().setCorrelationId(corrId)
+        .setMessageType(type.equals(MessageType.CLIENT_STATE_GET_REQUEST)
+            ? MessageType.CLIENT_STATE_GET_RESPONSE : MessageType.TP_STATE_SET_RESPONSE)
+        .setContent(ByteString.copyFrom("Timeout", StandardCharsets.UTF_8)).build();
   }
 
   private Message sendRemoteMessageGetResponse(Message mesg)
       throws InterruptedException, ExecutionException, TimeoutException {
 
-    Future<Message> sent = stream.send(mesg);
-    sent.get(TIME_OUT, TimeUnit.MILLISECONDS);
+    CompletableFuture<Message> futureResult = new CompletableFuture<Message>();
 
-    Future<Message> future = null;
+    stream.send(mesg)
+        .completeOnTimeout(getTimeoutMessage(mesg.getCorrelationId(), mesg.getMessageType()),
+            TIME_OUT, TimeUnit.MILLISECONDS)
+        .thenAccept(rs -> {
+          stream.receive(mesg.getCorrelationId())
+              .completeOnTimeout(getTimeoutMessage(mesg.getCorrelationId(), mesg.getMessageType()),
+                  TIME_OUT, TimeUnit.MILLISECONDS)
+              .thenAccept(rt -> {
+                futureResult.complete(rt);
+              });
+        });
 
-    if (sent.isDone()) {
-      future = stream.receive(mesg.getCorrelationId());
-    } else {
-
-    }
-
-    return future.get(TIME_OUT, TimeUnit.MILLISECONDS);
+    /**
+     * CompletableFuture<Message> sent = stream.send(mesg); Message result = null; sent.thenAccept(r
+     * -> { LOGGER.debug(""); }).get(TIME_OUT, TimeUnit.MILLISECONDS); Message errorMessage = new
+     * Message();
+     *
+     * result = stream.receive(mesg.getCorrelationId()).get(TIME_OUT, TimeUnit.MILLISECONDS);
+     */
+    return futureResult.get(TIME_OUT, TimeUnit.MILLISECONDS);
   }
 
   /**

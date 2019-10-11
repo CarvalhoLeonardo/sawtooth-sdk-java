@@ -105,6 +105,7 @@
 						<directory>src/test/resources/</directory>
 						<includes>
 							<include>*.bin</include>
+							<include>*.pub</include>
 						</includes>
 						<filtering>false</filtering>
 					</testResource>
@@ -134,6 +135,7 @@
 				<directory>src/test/resources/</directory>
 				<includes>
 					<include>*.bin</include>
+					<include>*.pub</include>
 				</includes>
 				<filtering>false</filtering>
 			</testResource>

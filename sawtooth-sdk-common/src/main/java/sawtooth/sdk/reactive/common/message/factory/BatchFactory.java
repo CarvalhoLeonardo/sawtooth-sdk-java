@@ -37,7 +37,7 @@ public class BatchFactory extends AbstractFamilyMessagesFactory<Batch> {
     }).collect(Collectors.toList());
 
     BatchHeader batchHeader = BatchHeader.newBuilder().addAllTransactionIds(txnSignatures)
-        .setSignerPublicKey(this.privateKey.getPublicKeyAsHex()).build();
+        .setSignerPublicKey(privateKey.getPublicKeyAsHex()).build();
 
     String headerSignature = SawtoothSigner.signHexSequence(privateKey, batchHeader.toByteArray());
 

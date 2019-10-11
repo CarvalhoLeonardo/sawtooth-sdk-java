@@ -2,18 +2,16 @@ package sawtooth.sdk.reactive.tp.transport.zmq;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 
 import reactor.core.publisher.ConnectableFlux;
+import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.SignalType;
-import reactor.core.publisher.WorkQueueProcessor;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.Logger;
 import reactor.util.Loggers;
 import sawtooth.sdk.protobuf.Message;
@@ -28,6 +26,9 @@ import sawtooth.sdk.protobuf.Message;
  * This class will use Reactor patterns to create a basic I/O to handle cycles of messaging.
  *
  * Both the Transaction Processors and the Validators would use this as a core component.
+ *
+ * WorkQueueProcessor: "can also be replaced by equivalent constructs like EmitterProcessor with
+ * publishOn and ParallelFlux with runOn."
  *
  */
 public class ReactorCoreProcessor {
@@ -68,12 +69,11 @@ public class ReactorCoreProcessor {
   private final String processorName;
   int queuesDepth;
 
-  private final WorkQueueProcessor<Message> receiverProcessor;
-  ExecutorService receivingExecutorService;
+  private final EmitterProcessor<Message> receiverProcessor;
 
   ThreadFactory receivingTF;
 
-  private final WorkQueueProcessor<Message> senderProcessor;
+  private final EmitterProcessor<Message> senderProcessor;
 
   ExecutorService sendingExecutorService;
 
@@ -87,15 +87,9 @@ public class ReactorCoreProcessor {
     receivingTF = new InternalThreadFactory(processorName, "receive");
     sendingTF = new InternalThreadFactory(processorName, "send");
 
-    receivingExecutorService = new ThreadPoolExecutor(1, parallelism, timeOutTaskMillis,
-        TimeUnit.MILLISECONDS, new LinkedBlockingDeque<>(parallelism), receivingTF);
-    sendingExecutorService = new ThreadPoolExecutor(1, parallelism, timeOutTaskMillis,
-        TimeUnit.MILLISECONDS, new LinkedBlockingDeque<>(parallelism), sendingTF);
-
     internalTaskExecutorService = Executors.newWorkStealingPool(parallelRails);
 
-    receiverProcessor = internalWQPBuilder(queuesBufferSize, receivingExecutorService,
-        internalTaskExecutorService);
+    receiverProcessor = EmitterProcessor.<Message>create(queuesBufferSize);
 
     if (LOGGER.isTraceEnabled()) {
       receiverProcessor
@@ -108,12 +102,11 @@ public class ReactorCoreProcessor {
     // incomingErrorConsumer = new StreamErrorProcessor(receiverProcessor.sink());
     // HERE
 
-    receiverProcessor.publish()
+    receiverProcessor.publishOn(Schedulers.newParallel(parallelRails, receivingTF))
         // .onErrorContinue(incomingErrorConsumer)
         .log();
 
-    senderProcessor = internalWQPBuilder(queuesBufferSize, sendingExecutorService,
-        internalTaskExecutorService);
+    senderProcessor = EmitterProcessor.<Message>create(queuesBufferSize);
 
     if (LOGGER.isTraceEnabled()) {
       senderProcessor
@@ -124,7 +117,7 @@ public class ReactorCoreProcessor {
               s.getClass().getSimpleName()));
     }
 
-    senderProcessor.publish().log();
+    senderProcessor.publishOn(Schedulers.newParallel(parallelRails, sendingTF)).log();
 
     incomingMessages = receiverProcessor.share()
         // .onErrorContinue(incomingErrorConsumer)
@@ -180,18 +173,12 @@ public class ReactorCoreProcessor {
     return outgoingMessages;
   }
 
-  public final WorkQueueProcessor<Message> getReceiverProcessor() {
+  public final EmitterProcessor<Message> getReceiverProcessor() {
     return receiverProcessor;
   }
 
-  public final WorkQueueProcessor<Message> getSenderProcessor() {
+  public final EmitterProcessor<Message> getSenderProcessor() {
     return senderProcessor;
-  }
-
-  private WorkQueueProcessor<Message> internalWQPBuilder(int queueSize, ExecutorService execServ,
-      ExecutorService taskExecutor) {
-    return WorkQueueProcessor.<Message>builder().bufferSize(queueSize).executor(execServ)
-        .requestTaskExecutor(taskExecutor).share(true).build();
   }
 
 }

@@ -1,8 +1,9 @@
 package sawtooth.sdk.reactive.tp.message.flow;
 
 import java.time.Duration;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
+
 import reactor.core.publisher.Flux;
 import sawtooth.sdk.protobuf.Message;
 
@@ -34,7 +35,7 @@ public abstract class MessagesStream {
    *
    * @return result, a protobuf Message
    */
-  public abstract Future<Message> receive(String corlID);
+  public abstract CompletableFuture<Message> receive(String corlID);
 
   /**
    * Get a message that has been received. If the timeout is expired, throws TimeoutException.
@@ -42,7 +43,8 @@ public abstract class MessagesStream {
    * @param timeout time to wait for a message.
    * @return result, a protobuf Message
    */
-  public abstract Future<Message> receive(String corlID, Duration timeout) throws TimeoutException;
+  public abstract CompletableFuture<Message> receive(String corlID, Duration timeout)
+      throws TimeoutException;
 
   /**
    * Send a message and return a Future that will later have the Bytestring.
@@ -50,8 +52,7 @@ public abstract class MessagesStream {
    * @param payload - the Message being sent
    * @return future a future that will hold the answer
    */
-  public abstract Future<Message> send(Message payload);
-
+  public abstract CompletableFuture<Message> send(Message payload);
 
   /**
    * Send a message without getting a future back. Useful for sending a response message to, for
@@ -61,6 +62,5 @@ public abstract class MessagesStream {
    * @param payload - the Message the server is expecting
    */
   public abstract void sendBack(String correlationId, Message payload);
-
 
 }

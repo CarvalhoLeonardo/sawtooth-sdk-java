@@ -1,7 +1,6 @@
 package sawtooth.sdk.reactive.common.message.factory;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidParameterException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -58,18 +57,25 @@ public class TransactionFactory extends AbstractFamilyMessagesFactory<Transactio
   }
 
   public Transaction createTransaction(ByteBuffer payload, List<String> inputs,
-      List<String> outputs, List<String> dependencies, String batcherPubKey)
+      List<String> outputs, List<String> dependencies, String signerPubKey)
       throws NoSuchAlgorithmException, InvalidProtocolBufferException {
-    if (batcherPubKey == null || batcherPubKey.isEmpty()) {
-      throw new InvalidProtocolBufferException("No batcher public key informed.");
-    }
-    LOGGER.trace("Creating transaction for family {} with batcher public key {}... ",
-        this.messagesTFamily.getFamilyName(), batcherPubKey);
+
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
-    transactionBuilder
-        .setPayload(ByteString.copyFrom(payload.toString(), StandardCharsets.US_ASCII));
-    TransactionHeader header = createTransactionHeader(generateDigestHex(payload.array()), inputs,
-        outputs, dependencies, Boolean.TRUE, batcherPubKey);
+    ByteString payloadToTransaction = ByteString.copyFrom(payload.array());
+    transactionBuilder.setPayload(payloadToTransaction);
+    TransactionHeader header;
+    if (signerPubKey == null || signerPubKey.isEmpty()) {
+      LOGGER.info("No public key informed, using the on from the factory...");
+      LOGGER.trace("Creating transaction for family {} with internal public key {}... ",
+          this.messagesTFamily.getFamilyName(), privateKey.getPublicKeyAsHex());
+      header = createTransactionHeader(generateDigestHex(payloadToTransaction.toByteArray()),
+          inputs, outputs, dependencies, Boolean.TRUE, privateKey.getPublicKeyAsHex());
+    } else {
+      LOGGER.trace("Creating transaction for family {} with batcher public key {}... ",
+          this.messagesTFamily.getFamilyName(), signerPubKey);
+      header = createTransactionHeader(generateDigestHex(payloadToTransaction.toByteArray()),
+          inputs, outputs, dependencies, Boolean.TRUE, signerPubKey);
+    }
     transactionBuilder.setHeader(header.toByteString());
     transactionBuilder.setHeaderSignature(createHeaderSignature(header));
 

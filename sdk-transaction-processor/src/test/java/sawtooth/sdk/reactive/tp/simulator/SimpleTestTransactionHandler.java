@@ -111,7 +111,7 @@ public class SimpleTestTransactionHandler implements TransactionHandler {
 
   @Override
   public Collection<String> getNameSpaces() {
-    return TEST_MESSAGE_FAMILY.getNameSpaces().values();
+    return TEST_MESSAGE_FAMILY.getNameSpaces().keySet();
   }
 
   @Override
